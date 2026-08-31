@@ -43,19 +43,19 @@ type DeobfuscateResponse struct {
     DetectedLanguage       string   `json:"detected_language"`
 }
 
-type TogetherRequest struct {
-    Model       string            `json:"model"`
-    Messages    []TogetherMessage `json:"messages"`
-    Temperature float64           `json:"temperature"`
-    MaxTokens   int               `json:"max_tokens"`
+type OpenRouterRequest struct {
+    Model       string              `json:"model"`
+    Messages    []OpenRouterMessage `json:"messages"`
+    Temperature float64             `json:"temperature"`
+    MaxTokens   int                 `json:"max_tokens"`
 }
 
-type TogetherMessage struct {
+type OpenRouterMessage struct {
     Role    string `json:"role"`
     Content string `json:"content"`
 }
 
-type TogetherResponse struct {
+type OpenRouterResponse struct {
     Choices []struct {
         Message struct {
             Content string `json:"content"`
@@ -360,14 +360,14 @@ func extractCode(content string) string {
 }
 
 func deobfuscateWithAI(code string) (string, error) {
-    apiKey := os.Getenv("TOGETHER_API_KEY")
+    apiKey := os.Getenv("OPENROUTER_API_KEY")
     if apiKey == "" {
-        return "", fmt.Errorf("TOGETHER_API_KEY not set")
+        return "", fmt.Errorf("OPENROUTER_API_KEY not set")
     }
 
-    reqBody := TogetherRequest{
-        Model: "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-        Messages: []TogetherMessage{
+    reqBody := OpenRouterRequest{
+        Model: "mistralai/mistral-7b-instruct:free",
+        Messages: []OpenRouterMessage{
             {
                 Role: "system",
                 Content: "You are a code deobfuscator. Decode and restore the original code. Return only the deobfuscated code without any explanation or markdown.",
@@ -383,7 +383,7 @@ func deobfuscateWithAI(code string) (string, error) {
 
     jsonData, _ := json.Marshal(reqBody)
 
-    req, _ := http.NewRequest("POST", "https://api.together.xyz/v1/chat/completions", bytes.NewBuffer(jsonData))
+    req, _ := http.NewRequest("POST", "https://openrouter.ai/api/v1/chat/completions", bytes.NewBuffer(jsonData))
     req.Header.Set("Content-Type", "application/json")
     req.Header.Set("Authorization", "Bearer "+apiKey)
 
@@ -396,14 +396,14 @@ func deobfuscateWithAI(code string) (string, error) {
 
     body, _ := io.ReadAll(resp.Body)
 
-    var togetherResp TogetherResponse
-    json.Unmarshal(body, &togetherResp)
+    var openRouterResp OpenRouterResponse
+    json.Unmarshal(body, &openRouterResp)
 
-    if len(togetherResp.Choices) > 0 {
-        return togetherResp.Choices[0].Message.Content, nil
+    if len(openRouterResp.Choices) > 0 {
+        return openRouterResp.Choices[0].Message.Content, nil
     }
 
-    return "", fmt.Errorf("no response from Together")
+    return "", fmt.Errorf("no response from OpenRouter")
 }
 
 func deobfuscateCode(code string, language string, obfuscationType string) DeobfuscateResponse {
@@ -421,7 +421,7 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
     var response DeobfuscateResponse
     json.Unmarshal([]byte(jsonStr), &response)
 
-    if os.Getenv("TOGETHER_API_KEY") != "" {
+    if os.Getenv("OPENROUTER_API_KEY") != "" {
         aiResult, err := deobfuscateWithAI(code)
         if err == nil && aiResult != "" && aiResult != code {
             response.OriginalCode = aiResult
