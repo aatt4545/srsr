@@ -122,7 +122,11 @@ func startAPIServer() {
         c.JSON(200, gin.H{"status": "ok"})
     })
 
-    router.Run(":8080")
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "8080"
+    }
+    router.Run(":" + port)
 }
 
 func fetchFromURL(url string) (string, error) {
