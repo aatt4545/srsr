@@ -368,7 +368,7 @@ func deobfuscateWithAI(code string) (string, error) {
     log.Println("AI deobfuscation started")
 
     reqBody := OpenRouterRequest{
-        Model: "nvidia/nemotron-3.5-lightning:free",,
+        Model: "nvidia/nemotron-3.5-lightning:free",
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
