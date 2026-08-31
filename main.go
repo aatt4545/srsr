@@ -224,7 +224,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
     }
 
     if strings.HasPrefix(m.Content, "!help") || strings.HasPrefix(m.Content, "/help") {
-        s.ChannelMessageSend(m.ChannelID, "使い方:\n/raw <URL>\n!raw <URL>\n!help <コード>\nファイルを添付して !raw")
+        s.ChannelMessageSend(m.ChannelID, "使い方:\n/raw <URL>\n!raw <コード>\nファイルを添付して !raw")
     }
 }
 
@@ -304,7 +304,7 @@ func handleDeobfuscateCommand(s *discordgo.Session, m *discordgo.MessageCreate) 
             result.ObfuscationType, result.DetectedLanguage, result.Confidence*100, result.ExecutionTimeMS),
         Files: []*discordgo.File{
             {
-                Name:   "output.txt",
+                Name:   "deobfuscated.zip",
                 Reader: bytes.NewReader(zipData),
             },
         },
@@ -348,7 +348,7 @@ func extractCode(content string) string {
         }
     }
 
-    prefix := "!deobfuscate "
+    prefix := "!raw "
     if strings.HasPrefix(content, prefix) {
         remainder := strings.TrimPrefix(content, prefix)
         if !strings.HasPrefix(remainder, "http://") && !strings.HasPrefix(remainder, "https://") {
@@ -383,7 +383,7 @@ func deobfuscateWithAI(code string) (string, error) {
     log.Println("AI deobfuscation started")
 
     reqBody := OpenRouterRequest{
-      Model: "poolside/laguna-s-2.1:free",
+        Model: "nvidia/nemotron-3.5-lightning:free",
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
@@ -403,7 +403,7 @@ func deobfuscateWithAI(code string) (string, error) {
             },
         },
         Temperature: 0.0,
-        MaxTokens:   2000,
+        MaxTokens:   1000,
     }
 
     jsonData, _ := json.Marshal(reqBody)
