@@ -6,6 +6,7 @@ use serde::{Serialize, Deserialize};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DeobfuscateResult {
     pub original_code: String,
