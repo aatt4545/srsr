@@ -1,5 +1,13 @@
 package main
 
+/*
+#cgo LDFLAGS: -L./target/release -ldeobfuscator -ldl -lm
+#include <stdlib.h>
+extern char* deobfuscate_code(char* code, char* language);
+extern void free_string(char* ptr);
+*/
+import "C"
+
 import (
     "archive/zip"
     "bytes"
@@ -13,6 +21,7 @@ import (
     "strings"
     "syscall"
     "time"
+    "unsafe"
 
     "github.com/bwmarrin/discordgo"
     "github.com/gin-gonic/gin"
@@ -327,13 +336,19 @@ func extractCode(content string) string {
 }
 
 func deobfuscateCode(code string, language string, obfuscationType string) DeobfuscateResponse {
-    // RustエンジンとのFFI連携はここに実装
-    return DeobfuscateResponse{
-        OriginalCode:           code,
-        ObfuscationType:        obfuscationType,
-        Confidence:             0.0,
-        ExecutionTimeMS:        0,
-        TransformationsApplied: []string{},
-        DetectedLanguage:       language,
-    }
+    cCode := C.CString(code)
+    cLang := C.CString(language)
+
+    defer C.free(unsafe.Pointer(cCode))
+    defer C.free(unsafe.Pointer(cLang))
+
+    result := C.deobfuscate_code(cCode, cLang)
+    defer C.free_string(result)
+
+    jsonStr := C.GoString(result)
+
+    var response DeobfuscateResponse
+    json.Unmarshal([]byte(jsonStr), &response)
+
+    return response
 }
