@@ -50,7 +50,7 @@ impl Deobfuscator {
     pub fn new() -> Self {
         let mut transformers = Vec::new();
         
-        // ============ エスケープ解除 ============
+        // ============ 基本エスケープ解除 ============
         
         transformers.push(Transformer::new(
             "octal_escape", vec!["all"],
@@ -115,6 +115,59 @@ impl Deobfuscator {
             }),
         ));
         
+        // ============ Lua特殊 ============
+        
+        transformers.push(Transformer::new(
+            "lua_hex_string", vec!["lua"],
+            Box::new(|code, _| {
+                // "65786563" → "exec" のようなhex文字列を変換
+                let re = Regex::new(r#"___\("([0-9a-fA-F]+)"\)"#).unwrap();
+                re.replace_all(code, |caps: &regex::Captures| {
+                    let hex_str = &caps[1];
+                    let bytes: Vec<u8> = (0..hex_str.len())
+                        .step_by(2)
+                        .filter_map(|i| u8::from_str_radix(&hex_str[i..i+2], 16).ok())
+                        .collect();
+                    format!("\"{}\"", String::from_utf8_lossy(&bytes))
+                }).to_string()
+            }),
+        ));
+        
+        transformers.push(Transformer::new(
+            "lua_byte_char", vec!["lua"],
+            Box::new(|code, _| {
+                // ('\48'):byte(1) → 48
+                let re = Regex::new(r#"\('\\?(\d+)'\):byte\((\d+)\)"#).unwrap();
+                re.replace_all(code, |caps: &regex::Captures| {
+                    caps[1].to_string()
+                }).to_string()
+            }),
+        ));
+        
+        transformers.push(Transformer::new(
+            "lua_getfenv", vec!["lua"],
+            Box::new(|code, _| {
+                // getfenv and getfenv() or _ENV → _ENV
+                code.replace("getfenv and getfenv() or _ENV", "_ENV")
+            }),
+        ));
+        
+        transformers.push(Transformer::new(
+            "lua_string_char_hex", vec!["lua"],
+            Box::new(|code, _| {
+                // string.char(___-__[_+31]) → 文字
+                let re = Regex::new(r"string\.char\(([^)]+)\)").unwrap();
+                re.replace_all(code, |caps: &regex::Captures| {
+                    let args = &caps[1];
+                    let chars: String = args.split(',')
+                        .filter_map(|s| s.trim().parse::<u32>().ok())
+                        .filter_map(char::from_u32)
+                        .collect();
+                    format!("\"{}\"", chars)
+                }).to_string()
+            }),
+        ));
+        
         // ============ 文字列配列 ============
         
         transformers.push(Transformer::new(
@@ -165,19 +218,15 @@ impl Deobfuscator {
             }),
         ));
         
-        // ============ table.concat (Lua) ============
+        // ============ table.concat ============
         
         transformers.push(Transformer::new(
             "lua_table_concat", vec!["lua"],
             Box::new(|code, _| {
-                let mut result = code.to_string();
                 let concat_re = Regex::new(r#"table\.concat\((\w+),\s*['"]?([^'"]*)['"]?\)"#).unwrap();
-                
-                result = concat_re.replace_all(&result, |caps: &regex::Captures| {
+                concat_re.replace_all(code, |caps: &regex::Captures| {
                     caps[1].to_string()
-                }).to_string();
-                
-                result
+                }).to_string()
             }),
         ));
         
@@ -198,30 +247,6 @@ impl Deobfuscator {
                     "lua" => vec![
                         r#"decode_base64\('([^']+)'\)"#,
                         r#"decode_base64\("([^"]+)"\)"#
-                    ],
-                    "ruby" => vec![
-                        r#"Base64\.decode64\('([^']+)'\)"#,
-                        r#"Base64\.decode64\("([^"]+)"\)"#
-                    ],
-                    "perl" => vec![
-                        r#"decode_base64\('([^']+)'\)"#,
-                        r#"decode_base64\("([^"]+)"\)"#
-                    ],
-                    "java" | "kotlin" => vec![
-                        r#"Base64\.getDecoder\(\)\.decode\('([^']+)'\)"#,
-                        r#"Base64\.getDecoder\(\)\.decode\("([^"]+)"\)"#
-                    ],
-                    "go" => vec![
-                        r#"base64\.StdEncoding\.DecodeString\('([^']+)'\)"#,
-                        r#"base64\.StdEncoding\.DecodeString\("([^"]+)"\)"#
-                    ],
-                    "rust" => vec![
-                        r#"base64::decode\('([^']+)'\)"#,
-                        r#"base64::decode\("([^"]+)"\)"#
-                    ],
-                    "shell" | "powershell" => vec![
-                        r#"echo '([^']+)' \| base64 -d"#,
-                        r#"base64 -d <<< '([^']+)'"#
                     ],
                     _ => vec![
                         r#"atob\('([^']+)'\)"#,
@@ -607,7 +632,7 @@ impl Deobfuscator {
                 }
             }
         } else {
-            for _ in 0..10 {
+            for _ in 0..20 {
                 let mut changed = false;
                 for transformer in &self.transformers {
                     if transformer.supports(&detected_language) {
@@ -628,7 +653,7 @@ impl Deobfuscator {
         let confidence = if transformations.is_empty() {
             0.0
         } else {
-            0.5 + (transformations.len() as f64 * 0.05).min(0.45)
+            0.5 + (transformations.len() as f64 * 0.03).min(0.45)
         };
         
         DeobfuscateResult {
@@ -657,7 +682,8 @@ impl Deobfuscator {
             return "python".to_string();
         }
         if code.contains("local ") || code.contains("loadstring") || code.contains("string.char") ||
-           code.contains("table.concat") || code.contains("..") {
+           code.contains("table.concat") || code.contains("getfenv") || code.contains("_ENV") ||
+           code.contains("..") {
             return "lua".to_string();
         }
         if code.contains("function") || code.contains("var ") || code.contains("const ") || 
@@ -741,6 +767,7 @@ impl Deobfuscator {
             ("rot13", r"str_rot13"),
             ("eval", r"eval\(|exec\(|loadstring\("),
             ("table_concat", r"table\.concat"),
+            ("lua_env", r"getfenv|_ENV"),
         ];
         
         for (name, pattern) in checks {
