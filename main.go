@@ -304,7 +304,7 @@ func handleDeobfuscateCommand(s *discordgo.Session, m *discordgo.MessageCreate) 
             result.ObfuscationType, result.DetectedLanguage, result.Confidence*100, result.ExecutionTimeMS),
         Files: []*discordgo.File{
             {
-                Name:   "output.zip",
+                Name:   "output.txt",
                 Reader: bytes.NewReader(zipData),
             },
         },
@@ -325,7 +325,7 @@ func createZip(result DeobfuscateResponse) []byte {
     buf := new(bytes.Buffer)
     w := zip.NewWriter(buf)
 
-    f, _ := w.Create("deobfuscated.txt")
+    f, _ := w.Create("output.txt")
     f.Write([]byte(result.OriginalCode))
 
     info, _ := w.Create("info.json")
