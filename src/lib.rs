@@ -50,7 +50,7 @@ impl Deobfuscator {
     pub fn new() -> Self {
         let mut transformers = Vec::new();
         
-        // ============ 基本エスケープ解除 ============
+        // ============ エスケープ解除（最初に1回だけ） ============
         
         transformers.push(Transformer::new(
             "octal_escape", vec!["all"],
@@ -120,10 +120,10 @@ impl Deobfuscator {
         transformers.push(Transformer::new(
             "lua_hex_string", vec!["lua"],
             Box::new(|code, _| {
-                // "65786563" → "exec" のようなhex文字列を変換
-                let re = Regex::new(r#"___\("([0-9a-fA-F]+)"\)"#).unwrap();
+                // ___("65786563") → "exec"
+                let re = Regex::new(r#"(\w+)\("([0-9a-fA-F]{2,})"\)"#).unwrap();
                 re.replace_all(code, |caps: &regex::Captures| {
-                    let hex_str = &caps[1];
+                    let hex_str = &caps[2];
                     let bytes: Vec<u8> = (0..hex_str.len())
                         .step_by(2)
                         .filter_map(|i| u8::from_str_radix(&hex_str[i..i+2], 16).ok())
@@ -147,24 +147,26 @@ impl Deobfuscator {
         transformers.push(Transformer::new(
             "lua_getfenv", vec!["lua"],
             Box::new(|code, _| {
-                // getfenv and getfenv() or _ENV → _ENV
                 code.replace("getfenv and getfenv() or _ENV", "_ENV")
             }),
         ));
         
         transformers.push(Transformer::new(
-            "lua_string_char_hex", vec!["lua"],
+            "lua_string_char", vec!["lua"],
             Box::new(|code, _| {
-                // string.char(___-__[_+31]) → 文字
-                let re = Regex::new(r"string\.char\(([^)]+)\)").unwrap();
-                re.replace_all(code, |caps: &regex::Captures| {
-                    let args = &caps[1];
-                    let chars: String = args.split(',')
-                        .filter_map(|s| s.trim().parse::<u32>().ok())
-                        .filter_map(char::from_u32)
-                        .collect();
-                    format!("\"{}\"", chars)
-                }).to_string()
+                if code.contains("string.char") {
+                    let re = Regex::new(r"string\.char\(([^)]+)\)").unwrap();
+                    re.replace_all(code, |caps: &regex::Captures| {
+                        let args = &caps[1];
+                        let chars: String = args.split(',')
+                            .filter_map(|s| s.trim().parse::<u32>().ok())
+                            .filter_map(char::from_u32)
+                            .collect();
+                        format!("\"{}\"", chars)
+                    }).to_string()
+                } else {
+                    code.to_string()
+                }
             }),
         ));
         
@@ -334,24 +336,6 @@ impl Deobfuscator {
             Box::new(|code, _| {
                 if code.contains("String.fromCharCode") {
                     let re = Regex::new(r"String\.fromCharCode\(([^)]+)\)").unwrap();
-                    re.replace_all(code, |caps: &regex::Captures| {
-                        let chars: String = caps[1].split(',')
-                            .filter_map(|s| s.trim().parse::<u32>().ok())
-                            .filter_map(char::from_u32)
-                            .collect();
-                        format!("\"{}\"", chars)
-                    }).to_string()
-                } else {
-                    code.to_string()
-                }
-            }),
-        ));
-        
-        transformers.push(Transformer::new(
-            "lua_charcode", vec!["lua"],
-            Box::new(|code, _| {
-                if code.contains("string.char") {
-                    let re = Regex::new(r"string\.char\(([^)]+)\)").unwrap();
                     re.replace_all(code, |caps: &regex::Captures| {
                         let chars: String = caps[1].split(',')
                             .filter_map(|s| s.trim().parse::<u32>().ok())
@@ -683,7 +667,7 @@ impl Deobfuscator {
         }
         if code.contains("local ") || code.contains("loadstring") || code.contains("string.char") ||
            code.contains("table.concat") || code.contains("getfenv") || code.contains("_ENV") ||
-           code.contains("..") {
+           code.contains("..") || code.contains(":byte") {
             return "lua".to_string();
         }
         if code.contains("function") || code.contains("var ") || code.contains("const ") || 
