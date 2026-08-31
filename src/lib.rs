@@ -3,6 +3,8 @@ use base64::{Engine as _, engine::general_purpose};
 use flate2::read::ZlibDecoder;
 use std::io::Read;
 use serde::{Serialize, Deserialize};
+use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DeobfuscateResult {
@@ -47,6 +49,8 @@ impl Transformer {
 impl Deobfuscator {
     pub fn new() -> Self {
         let mut transformers = Vec::new();
+        
+        // ============ 汎用トランスフォーマー ============
         
         transformers.push(Transformer::new(
             "base64", vec!["all"],
@@ -192,6 +196,8 @@ impl Deobfuscator {
             }),
         ));
         
+        // ============ JavaScript/TypeScript ============
+        
         transformers.push(Transformer::new(
             "js_charcode", vec!["javascript", "typescript"],
             Box::new(|code, _| {
@@ -260,6 +266,8 @@ impl Deobfuscator {
             }),
         ));
         
+        // ============ Lua ============
+        
         transformers.push(Transformer::new(
             "lua_charcode", vec!["lua"],
             Box::new(|code, _| {
@@ -306,6 +314,8 @@ impl Deobfuscator {
             }),
         ));
         
+        // ============ Python ============
+        
         transformers.push(Transformer::new(
             "py_exec", vec!["python"],
             Box::new(|code, _| {
@@ -337,6 +347,8 @@ impl Deobfuscator {
                 re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
             }),
         ));
+        
+        // ============ PHP ============
         
         transformers.push(Transformer::new(
             "php_eval", vec!["php"],
@@ -396,6 +408,8 @@ impl Deobfuscator {
             }),
         ));
         
+        // ============ Ruby ============
+        
         transformers.push(Transformer::new(
             "ruby_eval", vec!["ruby"],
             Box::new(|code, _| {
@@ -404,6 +418,8 @@ impl Deobfuscator {
             }),
         ));
         
+        // ============ Shell ============
+        
         transformers.push(Transformer::new(
             "shell_eval", vec!["shell", "powershell"],
             Box::new(|code, _| {
@@ -411,6 +427,8 @@ impl Deobfuscator {
                 re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
             }),
         ));
+        
+        // ============ SQL ============
         
         transformers.push(Transformer::new(
             "sql_hex", vec!["sql"],
@@ -612,5 +630,33 @@ impl Deobfuscator {
         }
         
         "unknown".to_string()
+    }
+}
+
+// ============ FFI for Go ============
+
+#[no_mangle]
+pub extern "C" fn deobfuscate_code(code: *const c_char, language: *const c_char) -> *mut c_char {
+    let code_str = unsafe {
+        CStr::from_ptr(code).to_string_lossy().into_owned()
+    };
+    let lang_str = unsafe {
+        CStr::from_ptr(language).to_string_lossy().into_owned()
+    };
+    
+    let deobfuscator = Deobfuscator::new();
+    let result = deobfuscator.deobfuscate(&code_str, &lang_str);
+    
+    let json = serde_json::to_string(&result).unwrap();
+    
+    CString::new(json).unwrap().into_raw()
+}
+
+#[no_mangle]
+pub extern "C" fn free_string(ptr: *mut c_char) {
+    unsafe {
+        if !ptr.is_null() {
+            let _ = CString::from_raw(ptr);
+        }
     }
 }
