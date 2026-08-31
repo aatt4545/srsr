@@ -53,41 +53,6 @@ impl Deobfuscator {
         // ============ 汎用トランスフォーマー ============
         
         transformers.push(Transformer::new(
-            "base64", vec!["all"],
-            Box::new(|code, lang| {
-                let patterns: Vec<&str> = match lang {
-                    "php" => vec![r#"base64_decode\('([^']+)'\)"#],
-                    "python" => vec![r#"base64\.b64decode\('([^']+)'\)"#],
-                    "lua" => vec![r#"decode_base64\('([^']+)'\)"#],
-                    "ruby" => vec![r#"Base64\.decode64\('([^']+)'\)"#],
-                    "perl" => vec![r#"decode_base64\('([^']+)'\)"#],
-                    "java" | "kotlin" => vec![r#"Base64\.getDecoder\(\)\.decode\('([^']+)'\)"#],
-                    "go" => vec![r#"base64\.StdEncoding\.DecodeString\('([^']+)'\)"#],
-                    "rust" => vec![r#"base64::decode\('([^']+)'\)"#],
-                    "shell" | "powershell" => vec![
-                        r#"echo '([^']+)' \| base64 -d"#,
-                        r#"base64 -d <<< '([^']+)'"#
-                    ],
-                    _ => vec![
-                        r#"atob\('([^']+)'\)"#,
-                        r#"btoa\('([^']+)'\)"#
-                    ],
-                };
-                
-                let mut result = code.to_string();
-                for pattern in patterns {
-                    let re = Regex::new(pattern).unwrap();
-                    result = re.replace_all(&result, |caps: &regex::Captures| {
-                        general_purpose::STANDARD.decode(&caps[1])
-                            .map(|d| String::from_utf8_lossy(&d).to_string())
-                            .unwrap_or_else(|_| caps[0].to_string())
-                    }).to_string();
-                }
-                result
-            }),
-        ));
-        
-        transformers.push(Transformer::new(
             "hex_escape", vec!["all"],
             Box::new(|code, _| {
                 let re = Regex::new(r"\\x([0-9a-fA-F]{2})").unwrap();
@@ -131,6 +96,153 @@ impl Deobfuscator {
                 urlencoding::decode(code).unwrap_or_else(|_| code.to_string().into()).to_string()
             }),
         ));
+        
+        // ============ 文字列配列（先に処理） ============
+        
+        transformers.push(Transformer::new(
+            "js_string_array", vec!["javascript", "typescript"],
+            Box::new(|code, _| {
+                let mut result = code.to_string();
+                let array_re = Regex::new(r"var\s+_\w+\s*=\s*\[([^\]]+)\]").unwrap();
+                
+                if let Some(caps) = array_re.captures(code) {
+                    let items: Vec<String> = caps[1].split(',')
+                        .map(|s| s.trim().trim_matches('"').trim_matches('\'').to_string())
+                        .collect();
+                    
+                    let ref_re = Regex::new(r"_(\w+)\[(\d+)\]").unwrap();
+                    result = ref_re.replace_all(code, |rc: &regex::Captures| {
+                        rc[2].parse::<usize>()
+                            .ok()
+                            .filter(|&i| i < items.len())
+                            .map(|i| format!("\"{}\"", items[i]))
+                            .unwrap_or_else(|| rc[0].to_string())
+                    }).to_string();
+                }
+                result
+            }),
+        ));
+        
+        transformers.push(Transformer::new(
+            "lua_string_array", vec!["lua"],
+            Box::new(|code, _| {
+                let mut result = code.to_string();
+                let array_re = Regex::new(r"local\s+_\w+\s*=\s*\{([^\}]+)\}").unwrap();
+                
+                if let Some(caps) = array_re.captures(code) {
+                    let items: Vec<String> = caps[1].split(',')
+                        .map(|s| s.trim().trim_matches('"').trim_matches('\'').to_string())
+                        .collect();
+                    
+                    let ref_re = Regex::new(r"_(\w+)\[(\d+)\]").unwrap();
+                    result = ref_re.replace_all(code, |rc: &regex::Captures| {
+                        rc[2].parse::<usize>()
+                            .ok()
+                            .filter(|&i| i < items.len())
+                            .map(|i| format!("\"{}\"", items[i]))
+                            .unwrap_or_else(|| rc[0].to_string())
+                    }).to_string();
+                }
+                result
+            }),
+        ));
+        
+        // ============ Base64 ============
+        
+        transformers.push(Transformer::new(
+            "base64", vec!["all"],
+            Box::new(|code, lang| {
+                let patterns: Vec<&str> = match lang {
+                    "php" => vec![r#"base64_decode\('([^']+)'\)"#],
+                    "python" => vec![r#"base64\.b64decode\('([^']+)'\)"#],
+                    "lua" => vec![r#"decode_base64\('([^']+)'\)"#],
+                    "ruby" => vec![r#"Base64\.decode64\('([^']+)'\)"#],
+                    "perl" => vec![r#"decode_base64\('([^']+)'\)"#],
+                    "java" | "kotlin" => vec![r#"Base64\.getDecoder\(\)\.decode\('([^']+)'\)"#],
+                    "go" => vec![r#"base64\.StdEncoding\.DecodeString\('([^']+)'\)"#],
+                    "rust" => vec![r#"base64::decode\('([^']+)'\)"#],
+                    "shell" | "powershell" => vec![
+                        r#"echo '([^']+)' \| base64 -d"#,
+                        r#"base64 -d <<< '([^']+)'"#
+                    ],
+                    _ => vec![
+                        r#"atob\('([^']+)'\)"#,
+                        r#"btoa\('([^']+)'\)"#
+                    ],
+                };
+                
+                let mut result = code.to_string();
+                for pattern in patterns {
+                    let re = Regex::new(pattern).unwrap();
+                    result = re.replace_all(&result, |caps: &regex::Captures| {
+                        general_purpose::STANDARD.decode(&caps[1])
+                            .map(|d| String::from_utf8_lossy(&d).to_string())
+                            .unwrap_or_else(|_| caps[0].to_string())
+                    }).to_string();
+                }
+                result
+            }),
+        ));
+        
+        // ============ eval/exec/loadstring ============
+        
+        transformers.push(Transformer::new(
+            "js_eval", vec!["javascript", "typescript"],
+            Box::new(|code, _| {
+                let re = Regex::new(r"eval\(([^)]+)\)").unwrap();
+                re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
+            }),
+        ));
+        
+        transformers.push(Transformer::new(
+            "lua_loadstring", vec!["lua"],
+            Box::new(|code, _| {
+                let re = Regex::new(r"loadstring\(([^)]+)\)").unwrap();
+                re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
+            }),
+        ));
+        
+        transformers.push(Transformer::new(
+            "py_exec", vec!["python"],
+            Box::new(|code, _| {
+                let re = Regex::new(r"exec\(([^)]+)\)").unwrap();
+                re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
+            }),
+        ));
+        
+        transformers.push(Transformer::new(
+            "py_eval", vec!["python"],
+            Box::new(|code, _| {
+                let re = Regex::new(r"eval\(([^)]+)\)").unwrap();
+                re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
+            }),
+        ));
+        
+        transformers.push(Transformer::new(
+            "php_eval", vec!["php"],
+            Box::new(|code, _| {
+                let re = Regex::new(r"eval\(([^)]+)\)").unwrap();
+                re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
+            }),
+        ));
+        
+        transformers.push(Transformer::new(
+            "ruby_eval", vec!["ruby"],
+            Box::new(|code, _| {
+                let re = Regex::new(r"eval\(([^)]+)\)").unwrap();
+                re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
+            }),
+        ));
+        
+        transformers.push(Transformer::new(
+            "shell_eval", vec!["shell", "powershell"],
+            Box::new(|code, _| {
+                let re = Regex::new(r#"eval\s+'([^']+)'"#).unwrap();
+                re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
+            }),
+        ));
+        
+        // ============ 残りのトランスフォーマー ============
         
         transformers.push(Transformer::new(
             "rot13", vec!["php", "perl", "python"],
@@ -200,8 +312,6 @@ impl Deobfuscator {
             }),
         ));
         
-        // ============ JavaScript/TypeScript ============
-        
         transformers.push(Transformer::new(
             "js_charcode", vec!["javascript", "typescript"],
             Box::new(|code, _| {
@@ -217,26 +327,16 @@ impl Deobfuscator {
         ));
         
         transformers.push(Transformer::new(
-            "js_string_array", vec!["javascript", "typescript"],
+            "lua_charcode", vec!["lua"],
             Box::new(|code, _| {
-                let mut result = code.to_string();
-                let array_re = Regex::new(r"var\s+_\w+\s*=\s*\[([^\]]+)\]").unwrap();
-                
-                if let Some(caps) = array_re.captures(code) {
-                    let items: Vec<String> = caps[1].split(',')
-                        .map(|s| s.trim().trim_matches('"').trim_matches('\'').to_string())
+                let re = Regex::new(r"string\.char\(([^)]+)\)").unwrap();
+                re.replace_all(code, |caps: &regex::Captures| {
+                    let chars: String = caps[1].split(',')
+                        .filter_map(|s| s.trim().parse::<u32>().ok())
+                        .filter_map(char::from_u32)
                         .collect();
-                    
-                    let ref_re = Regex::new(r"_(\w+)\[(\d+)\]").unwrap();
-                    result = ref_re.replace_all(code, |rc: &regex::Captures| {
-                        rc[2].parse::<usize>()
-                            .ok()
-                            .filter(|&i| i < items.len())
-                            .map(|i| format!("\"{}\"", items[i]))
-                            .unwrap_or_else(|| rc[0].to_string())
-                    }).to_string();
-                }
-                result
+                    format!("\"{}\"", chars)
+                }).to_string()
             }),
         ));
         
@@ -263,80 +363,6 @@ impl Deobfuscator {
         ));
         
         transformers.push(Transformer::new(
-            "js_eval", vec!["javascript", "typescript"],
-            Box::new(|code, _| {
-                let re = Regex::new(r"eval\(([^)]+)\)").unwrap();
-                re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
-            }),
-        ));
-        
-        // ============ Lua ============
-        
-        transformers.push(Transformer::new(
-            "lua_charcode", vec!["lua"],
-            Box::new(|code, _| {
-                let re = Regex::new(r"string\.char\(([^)]+)\)").unwrap();
-                re.replace_all(code, |caps: &regex::Captures| {
-                    let chars: String = caps[1].split(',')
-                        .filter_map(|s| s.trim().parse::<u32>().ok())
-                        .filter_map(char::from_u32)
-                        .collect();
-                    format!("\"{}\"", chars)
-                }).to_string()
-            }),
-        ));
-        
-        transformers.push(Transformer::new(
-            "lua_loadstring", vec!["lua"],
-            Box::new(|code, _| {
-                let re = Regex::new(r"loadstring\(([^)]+)\)").unwrap();
-                re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
-            }),
-        ));
-        
-        transformers.push(Transformer::new(
-            "lua_string_array", vec!["lua"],
-            Box::new(|code, _| {
-                let mut result = code.to_string();
-                let array_re = Regex::new(r"local\s+_\w+\s*=\s*\{([^\}]+)\}").unwrap();
-                
-                if let Some(caps) = array_re.captures(code) {
-                    let items: Vec<String> = caps[1].split(',')
-                        .map(|s| s.trim().trim_matches('"').trim_matches('\'').to_string())
-                        .collect();
-                    
-                    let ref_re = Regex::new(r"_(\w+)\[(\d+)\]").unwrap();
-                    result = ref_re.replace_all(code, |rc: &regex::Captures| {
-                        rc[2].parse::<usize>()
-                            .ok()
-                            .filter(|&i| i < items.len())
-                            .map(|i| format!("\"{}\"", items[i]))
-                            .unwrap_or_else(|| rc[0].to_string())
-                    }).to_string();
-                }
-                result
-            }),
-        ));
-        
-        // ============ Python ============
-        
-        transformers.push(Transformer::new(
-            "py_exec", vec!["python"],
-            Box::new(|code, _| {
-                let re = Regex::new(r"exec\(([^)]+)\)").unwrap();
-                re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
-            }),
-        ));
-        
-        transformers.push(Transformer::new(
-            "py_eval", vec!["python"],
-            Box::new(|code, _| {
-                let re = Regex::new(r"eval\(([^)]+)\)").unwrap();
-                re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
-            }),
-        ));
-        
-        transformers.push(Transformer::new(
             "py_lambda", vec!["python"],
             Box::new(|code, _| {
                 let re = Regex::new(r"lambda\s*:\s*(.+)").unwrap();
@@ -348,16 +374,6 @@ impl Deobfuscator {
             "py_marshal", vec!["python"],
             Box::new(|code, _| {
                 let re = Regex::new(r"marshal\.loads\(([^)]+)\)").unwrap();
-                re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
-            }),
-        ));
-        
-        // ============ PHP ============
-        
-        transformers.push(Transformer::new(
-            "php_eval", vec!["php"],
-            Box::new(|code, _| {
-                let re = Regex::new(r"eval\(([^)]+)\)").unwrap();
                 re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
             }),
         ));
@@ -411,28 +427,6 @@ impl Deobfuscator {
                 }).to_string()
             }),
         ));
-        
-        // ============ Ruby ============
-        
-        transformers.push(Transformer::new(
-            "ruby_eval", vec!["ruby"],
-            Box::new(|code, _| {
-                let re = Regex::new(r"eval\(([^)]+)\)").unwrap();
-                re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
-            }),
-        ));
-        
-        // ============ Shell ============
-        
-        transformers.push(Transformer::new(
-            "shell_eval", vec!["shell", "powershell"],
-            Box::new(|code, _| {
-                let re = Regex::new(r#"eval\s+'([^']+)'"#).unwrap();
-                re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
-            }),
-        ));
-        
-        // ============ SQL ============
         
         transformers.push(Transformer::new(
             "sql_hex", vec!["sql"],
@@ -495,14 +489,16 @@ impl Deobfuscator {
                 }
             }
         } else {
-            for _ in 0..3 {
+            for _ in 0..10 {
                 let mut changed = false;
                 for transformer in &self.transformers {
                     if transformer.supports(&detected_language) {
                         let before = result_code.clone();
                         result_code = (transformer.transform)(&result_code, &detected_language);
                         if before != result_code {
-                            transformations.push(transformer.name.clone());
+                            if !transformations.contains(&transformer.name) {
+                                transformations.push(transformer.name.clone());
+                            }
                             changed = true;
                         }
                     }
@@ -514,7 +510,7 @@ impl Deobfuscator {
         let confidence = if transformations.is_empty() {
             0.0
         } else {
-            0.5 + (transformations.len() as f64 * 0.1).min(0.45)
+            0.5 + (transformations.len() as f64 * 0.05).min(0.45)
         };
         
         DeobfuscateResult {
