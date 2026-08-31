@@ -383,7 +383,7 @@ func deobfuscateWithAI(code string) (string, error) {
     log.Println("AI deobfuscation started")
 
     reqBody := OpenRouterRequest{
-      Model: "deepseek/deepseek-r1:free",
+      Model: "poolside/laguna-s-2.1:free",
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
