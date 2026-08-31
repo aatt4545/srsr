@@ -44,7 +44,6 @@ type DeobfuscateResponse struct {
 }
 
 type OpenRouterRequest struct {
-    Model       string              `json:"model"`
     Messages    []OpenRouterMessage `json:"messages"`
     Temperature float64             `json:"temperature"`
     MaxTokens   int                 `json:"max_tokens"`
@@ -368,7 +367,6 @@ func deobfuscateWithAI(code string) (string, error) {
     log.Println("AI deobfuscation started")
 
     reqBody := OpenRouterRequest{
-        Model: "mistralai/mistral-7b-instruct:free",
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
