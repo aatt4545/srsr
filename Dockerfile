@@ -9,9 +9,9 @@ FROM golang:1.21 AS go-builder
 
 WORKDIR /app
 COPY go.mod ./
-RUN go mod download
+COPY main.go ./
 RUN go mod tidy
-COPY . .
+RUN go mod download
 RUN go build -o deobfuscator-server
 
 FROM debian:bookworm-slim
