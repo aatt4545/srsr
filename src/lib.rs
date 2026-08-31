@@ -48,27 +48,25 @@ impl Deobfuscator {
     pub fn new() -> Self {
         let mut transformers = Vec::new();
         
-        // ============ 汎用トランスフォーマー ============
-        
         transformers.push(Transformer::new(
             "base64", vec!["all"],
             Box::new(|code, lang| {
-                let patterns = match lang {
-                    "php" => vec![r#"base64_decode\(['"]([^'"]+)['"]\)"#],
-                    "python" => vec![r#"base64\.b64decode\(['"]([^'"]+)['"]\)"#],
-                    "lua" => vec![r#"decode_base64\(['"]([^'"]+)['"]\)"#],
-                    "ruby" => vec![r#"Base64\.decode64\(['"]([^'"]+)['"]\)"#],
-                    "perl" => vec![r#"decode_base64\(['"]([^'"]+)['"]\)"#],
-                    "java" | "kotlin" => vec![r"Base64\.getDecoder\(\)\.decode\(['\"]([^'\"]+)['\"]\)"],
-                    "go" => vec![r#"base64\.StdEncoding\.DecodeString\(['"]([^'"]+)['"]\)"#],
-                    "rust" => vec![r#"base64::decode\(['"]([^'"]+)['"]\)"#],
+                let patterns: Vec<&str> = match lang {
+                    "php" => vec![r#"base64_decode\('([^']+)'\)"#],
+                    "python" => vec![r#"base64\.b64decode\('([^']+)'\)"#],
+                    "lua" => vec![r#"decode_base64\('([^']+)'\)"#],
+                    "ruby" => vec![r#"Base64\.decode64\('([^']+)'\)"#],
+                    "perl" => vec![r#"decode_base64\('([^']+)'\)"#],
+                    "java" | "kotlin" => vec![r#"Base64\.getDecoder\(\)\.decode\('([^']+)'\)"#],
+                    "go" => vec![r#"base64\.StdEncoding\.DecodeString\('([^']+)'\)"#],
+                    "rust" => vec![r#"base64::decode\('([^']+)'\)"#],
                     "shell" | "powershell" => vec![
-                        r"echo\s+['\"]([^'\"]+)['\"]\s*\|\s*base64\s+-d",
-                        r"base64\s+-d\s+<<<\s+['\"]([^'\"]+)['\"]"
+                        r#"echo '([^']+)' \| base64 -d"#,
+                        r#"base64 -d <<< '([^']+)'"#
                     ],
                     _ => vec![
-                        r#"atob\(['"]([^'"]+)['"]\)"#,
-                        r"btoa\(['\"]([^'\"]+)['\"]\)"
+                        r#"atob\('([^']+)'\)"#,
+                        r#"btoa\('([^']+)'\)"#
                     ],
                 };
                 
@@ -175,7 +173,7 @@ impl Deobfuscator {
         transformers.push(Transformer::new(
             "reverse", vec!["all"],
             Box::new(|code, _| {
-                let re = Regex::new(r#""([^"]+)"\.split\(['"]{2}\)\.reverse\(\)\.join\(['"]{2}\)"#).unwrap();
+                let re = Regex::new(r#""([^"]+)"\.split\(''\)\.reverse\(\)\.join\(''\)"#).unwrap();
                 re.replace_all(code, |caps: &regex::Captures| {
                     format!("\"{}\"", caps[1].chars().rev().collect::<String>())
                 }).to_string()
@@ -193,8 +191,6 @@ impl Deobfuscator {
                 result
             }),
         ));
-        
-        // ============ JavaScript/TypeScript ============
         
         transformers.push(Transformer::new(
             "js_charcode", vec!["javascript", "typescript"],
@@ -214,7 +210,7 @@ impl Deobfuscator {
             "js_string_array", vec!["javascript", "typescript"],
             Box::new(|code, _| {
                 let mut result = code.to_string();
-                let array_re = Regex::new(r#"var\s+_\w+\s*=\s*\[([^\]]+)\]"#).unwrap();
+                let array_re = Regex::new(r"var\s+_\w+\s*=\s*\[([^\]]+)\]").unwrap();
                 
                 if let Some(caps) = array_re.captures(code) {
                     let items: Vec<String> = caps[1].split(',')
@@ -264,8 +260,6 @@ impl Deobfuscator {
             }),
         ));
         
-        // ============ Lua ============
-        
         transformers.push(Transformer::new(
             "lua_charcode", vec!["lua"],
             Box::new(|code, _| {
@@ -292,7 +286,7 @@ impl Deobfuscator {
             "lua_string_array", vec!["lua"],
             Box::new(|code, _| {
                 let mut result = code.to_string();
-                let array_re = Regex::new(r#"local\s+_\w+\s*=\s*\{([^\}]+)\}"#).unwrap();
+                let array_re = Regex::new(r"local\s+_\w+\s*=\s*\{([^\}]+)\}").unwrap();
                 
                 if let Some(caps) = array_re.captures(code) {
                     let items: Vec<String> = caps[1].split(',')
@@ -311,8 +305,6 @@ impl Deobfuscator {
                 result
             }),
         ));
-        
-        // ============ Python ============
         
         transformers.push(Transformer::new(
             "py_exec", vec!["python"],
@@ -346,8 +338,6 @@ impl Deobfuscator {
             }),
         ));
         
-        // ============ PHP ============
-        
         transformers.push(Transformer::new(
             "php_eval", vec!["php"],
             Box::new(|code, _| {
@@ -359,7 +349,7 @@ impl Deobfuscator {
         transformers.push(Transformer::new(
             "php_gzinflate", vec!["php"],
             Box::new(|code, _| {
-                let re = Regex::new(r"gzinflate\(base64_decode\(['\"]([^'\"]+)['\"]\)\)").unwrap();
+                let re = Regex::new(r#"gzinflate\(base64_decode\('([^']+)'\)\)"#).unwrap();
                 re.replace_all(code, |caps: &regex::Captures| {
                     if let Ok(decoded) = general_purpose::STANDARD.decode(&caps[1]) {
                         let mut decoder = ZlibDecoder::new(&decoded[..]);
@@ -376,7 +366,7 @@ impl Deobfuscator {
         transformers.push(Transformer::new(
             "php_gzuncompress", vec!["php"],
             Box::new(|code, _| {
-                let re = Regex::new(r"gzuncompress\(base64_decode\(['\"]([^'\"]+)['\"]\)\)").unwrap();
+                let re = Regex::new(r#"gzuncompress\(base64_decode\('([^']+)'\)\)"#).unwrap();
                 re.replace_all(code, |caps: &regex::Captures| {
                     if let Ok(decoded) = general_purpose::STANDARD.decode(&caps[1]) {
                         let mut decoder = ZlibDecoder::new(&decoded[..]);
@@ -393,7 +383,7 @@ impl Deobfuscator {
         transformers.push(Transformer::new(
             "php_str_rot13", vec!["php"],
             Box::new(|code, _| {
-                let re = Regex::new(r"str_rot13\(['\"]([^'\"]+)['\"]\)").unwrap();
+                let re = Regex::new(r#"str_rot13\('([^']+)'\)"#).unwrap();
                 re.replace_all(code, |caps: &regex::Captures| {
                     let decoded: String = caps[1].chars().map(|c| {
                         if c.is_ascii_alphabetic() {
@@ -406,8 +396,6 @@ impl Deobfuscator {
             }),
         ));
         
-        // ============ Ruby ============
-        
         transformers.push(Transformer::new(
             "ruby_eval", vec!["ruby"],
             Box::new(|code, _| {
@@ -416,17 +404,13 @@ impl Deobfuscator {
             }),
         ));
         
-        // ============ Shell ============
-        
         transformers.push(Transformer::new(
             "shell_eval", vec!["shell", "powershell"],
             Box::new(|code, _| {
-                let re = Regex::new(r"eval\s+['\"]([^'\"]+)['\"]").unwrap();
+                let re = Regex::new(r#"eval\s+'([^']+)'"#).unwrap();
                 re.replace_all(code, |caps: &regex::Captures| caps[1].to_string()).to_string()
             }),
         ));
-        
-        // ============ SQL ============
         
         transformers.push(Transformer::new(
             "sql_hex", vec!["sql"],
@@ -605,7 +589,7 @@ impl Deobfuscator {
     fn detect_obfuscation_type(&self, code: &str) -> String {
         let checks: Vec<(&str, &str)> = vec![
             ("jsfuck", r"\[\]\+\[\]"),
-            ("aaencode", r"ﾟωﾟﾉ"),
+            ("aaencode", "ωﾟﾉ"),
             ("jjencode", r"\$=~\[\]"),
             ("base64", r"atob\(|base64_decode\(|base64\.b64decode|Base64\.decode64|base64\.StdEncoding"),
             ("string_array", r"var\s+_\w+\s*=\s*\[|local\s+_\w+\s*=\s*\{"),
