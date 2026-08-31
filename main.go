@@ -63,30 +63,7 @@ type OpenRouterResponse struct {
     } `json:"choices"`
 }
 
-func listAvailableModels() {
-    apiKey := os.Getenv("OPENROUTER_API_KEY")
-    if apiKey == "" {
-        log.Println("OPENROUTER_API_KEY not set")
-        return
-    }
-
-    req, _ := http.NewRequest("GET", "https://openrouter.ai/api/v1/models", nil)
-    req.Header.Set("Authorization", "Bearer "+apiKey)
-
-    client := &http.Client{Timeout: 30 * time.Second}
-    resp, err := client.Do(req)
-    if err != nil {
-        log.Println("Failed to fetch models:", err)
-        return
-    }
-    defer resp.Body.Close()
-
-    body, _ := io.ReadAll(resp.Body)
-    log.Println("Available models:", string(body))
-}
-
 func main() {
-    listAvailableModels()
     go startAPIServer()
     startDiscordBot()
 }
@@ -391,7 +368,7 @@ func deobfuscateWithAI(code string) (string, error) {
     log.Println("AI deobfuscation started")
 
     reqBody := OpenRouterRequest{
-        Model: "meta-llama/llama-3.1-8b-instruct:free",
+        Model: "thinkingmachines/inkling-small:free",
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
@@ -412,7 +389,7 @@ func deobfuscateWithAI(code string) (string, error) {
     req.Header.Set("Content-Type", "application/json")
     req.Header.Set("Authorization", "Bearer "+apiKey)
 
-    client := &http.Client{Timeout: 60 * time.Second}
+    client := &http.Client{Timeout: 120 * time.Second}
     resp, err := client.Do(req)
     if err != nil {
         log.Println("AI request error:", err)
