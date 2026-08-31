@@ -6,7 +6,6 @@ use serde::{Serialize, Deserialize};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
-
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DeobfuscateResult {
     pub original_code: String,
@@ -134,14 +133,18 @@ impl Deobfuscator {
         ));
         
         transformers.push(Transformer::new(
-            "rot13", vec!["all"],
+            "rot13", vec!["php", "perl", "python"],
             Box::new(|code, _| {
-                code.chars().map(|c| {
-                    if c.is_ascii_alphabetic() {
-                        let base = if c.is_ascii_uppercase() { b'A' } else { b'a' };
-                        ((c as u8 - base + 13) % 26 + base) as char
-                    } else { c }
-                }).collect()
+                if code.contains("str_rot13") || code.contains("rot13") || code.contains("decode_rot13") {
+                    code.chars().map(|c| {
+                        if c.is_ascii_alphabetic() {
+                            let base = if c.is_ascii_uppercase() { b'A' } else { b'a' };
+                            ((c as u8 - base + 13) % 26 + base) as char
+                        } else { c }
+                    }).collect()
+                } else {
+                    code.to_string()
+                }
             }),
         ));
         
