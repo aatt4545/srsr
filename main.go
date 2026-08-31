@@ -387,14 +387,14 @@ func deobfuscateWithAI(code string) (string, error) {
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
-                Content: "You are a code deobfuscator. This code is already partially deobfuscated. Complete the deobfuscation. Remove ALL unnecessary variables, dead code, and obfuscation patterns. Return ONLY the code that actually does something meaningful. No explanations, no markdown. Just the final code.",
+                Content: "You are a raw code compiler output. Your ONLY input is obfuscated code, and your ONLY output is the final deobfuscated plain code. DO NOT speak, DO NOT explain, DO NOT write introduction or conclusion, DO NOT use conversational text. Write NO text other than the clean code itself.",
             },
             {
                 Role: "user",
-                Content: fmt.Sprintf("Complete the deobfuscation of this code:\n\n%s", code),
+                Content: fmt.Sprintf("Obfuscated code:\n\n%s\n\nDeobfuscated code:", code),
             },
         },
-        Temperature: 0.1,
+        Temperature: 0.0,
         MaxTokens:   2000,
     }
 
@@ -447,7 +447,6 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
     json.Unmarshal([]byte(jsonStr), &response)
 
     if os.Getenv("OPENROUTER_API_KEY") != "" {
-        // Rustで部分解読した結果をAIに渡す
         aiResult, err := deobfuscateWithAI(response.OriginalCode)
         if err != nil {
             log.Println("AI error:", err)
