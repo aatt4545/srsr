@@ -1,1 +1,7 @@
-
+target/
+*.so
+*.exe
+*.zip
+.env
+DISCORD_BOT_TOKEN
+deobfuscator-server
