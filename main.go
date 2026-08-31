@@ -486,7 +486,7 @@ func deobfuscateWithAI(code string) (string, error) {
         },
     },
     Temperature: 0.1,
-    MaxTokens: 500,
+    MaxTokens: 1000,
 }
 
     jsonData, _ := json.Marshal(reqBody)
