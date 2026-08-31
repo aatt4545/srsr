@@ -387,15 +387,23 @@ func deobfuscateWithAI(code string) (string, error) {
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
-                Content: "You are a raw code compiler output. Your ONLY input is obfuscated code, and your ONLY output is the final deobfuscated plain code. DO NOT speak, DO NOT explain, DO NOT write introduction or conclusion, DO NOT use conversational text. Write NO text other than the clean code itself.",
+                Content: "You are an execution emulator. Your task is to analyze obfuscated code and output ONLY the final executed side-effect. REMOVE all wrapper functions, unused variables, array lookups, and setup code. DO NOT wrap in markdown, DO NOT explain. Return ONLY the minimal code result.",
             },
             {
                 Role: "user",
-                Content: fmt.Sprintf("Obfuscated code:\n\n%s\n\nDeobfuscated code:", code),
+                Content: "var _0x1 = ['console', 'log']; var a = _0x1[0]; var b = _0x1[1]; window[a][b]('Hello World'); var dummy = 123;",
+            },
+            {
+                Role: "assistant",
+                Content: "console.log(\"Hello World\");",
+            },
+            {
+                Role: "user",
+                Content: fmt.Sprintf("Extract ONLY the effective final code/result from this:\n\n%s", code),
             },
         },
         Temperature: 0.0,
-        MaxTokens:   2000,
+        MaxTokens:   1000,
     }
 
     jsonData, _ := json.Marshal(reqBody)
