@@ -153,21 +153,47 @@ impl Deobfuscator {
             "base64", vec!["all"],
             Box::new(|code, lang| {
                 let patterns: Vec<&str> = match lang {
-                    "php" => vec![r#"base64_decode\('([^']+)'\)"#],
-                    "python" => vec![r#"base64\.b64decode\('([^']+)'\)"#],
-                    "lua" => vec![r#"decode_base64\('([^']+)'\)"#],
-                    "ruby" => vec![r#"Base64\.decode64\('([^']+)'\)"#],
-                    "perl" => vec![r#"decode_base64\('([^']+)'\)"#],
-                    "java" | "kotlin" => vec![r#"Base64\.getDecoder\(\)\.decode\('([^']+)'\)"#],
-                    "go" => vec![r#"base64\.StdEncoding\.DecodeString\('([^']+)'\)"#],
-                    "rust" => vec![r#"base64::decode\('([^']+)'\)"#],
+                    "php" => vec![
+                        r#"base64_decode\('([^']+)'\)"#,
+                        r#"base64_decode\("([^"]+)"\)"#
+                    ],
+                    "python" => vec![
+                        r#"base64\.b64decode\('([^']+)'\)"#,
+                        r#"base64\.b64decode\("([^"]+)"\)"#
+                    ],
+                    "lua" => vec![
+                        r#"decode_base64\('([^']+)'\)"#,
+                        r#"decode_base64\("([^"]+)"\)"#
+                    ],
+                    "ruby" => vec![
+                        r#"Base64\.decode64\('([^']+)'\)"#,
+                        r#"Base64\.decode64\("([^"]+)"\)"#
+                    ],
+                    "perl" => vec![
+                        r#"decode_base64\('([^']+)'\)"#,
+                        r#"decode_base64\("([^"]+)"\)"#
+                    ],
+                    "java" | "kotlin" => vec![
+                        r#"Base64\.getDecoder\(\)\.decode\('([^']+)'\)"#,
+                        r#"Base64\.getDecoder\(\)\.decode\("([^"]+)"\)"#
+                    ],
+                    "go" => vec![
+                        r#"base64\.StdEncoding\.DecodeString\('([^']+)'\)"#,
+                        r#"base64\.StdEncoding\.DecodeString\("([^"]+)"\)"#
+                    ],
+                    "rust" => vec![
+                        r#"base64::decode\('([^']+)'\)"#,
+                        r#"base64::decode\("([^"]+)"\)"#
+                    ],
                     "shell" | "powershell" => vec![
                         r#"echo '([^']+)' \| base64 -d"#,
                         r#"base64 -d <<< '([^']+)'"#
                     ],
                     _ => vec![
                         r#"atob\('([^']+)'\)"#,
-                        r#"btoa\('([^']+)'\)"#
+                        r#"atob\("([^"]+)"\)"#,
+                        r#"btoa\('([^']+)'\)"#,
+                        r#"btoa\("([^"]+)"\)"#
                     ],
                 };
                 
