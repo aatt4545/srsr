@@ -365,6 +365,8 @@ func deobfuscateWithAI(code string) (string, error) {
         return "", fmt.Errorf("OPENROUTER_API_KEY not set")
     }
 
+    log.Println("AI deobfuscation started")
+
     reqBody := OpenRouterRequest{
         Model: "mistralai/mistral-7b-instruct:free",
         Messages: []OpenRouterMessage{
@@ -390,16 +392,20 @@ func deobfuscateWithAI(code string) (string, error) {
     client := &http.Client{Timeout: 60 * time.Second}
     resp, err := client.Do(req)
     if err != nil {
+        log.Println("AI request error:", err)
         return "", err
     }
     defer resp.Body.Close()
 
     body, _ := io.ReadAll(resp.Body)
+    log.Println("AI response status:", resp.StatusCode)
+    log.Println("AI response body:", string(body))
 
     var openRouterResp OpenRouterResponse
     json.Unmarshal(body, &openRouterResp)
 
     if len(openRouterResp.Choices) > 0 {
+        log.Println("AI success")
         return openRouterResp.Choices[0].Message.Content, nil
     }
 
@@ -423,10 +429,16 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
 
     if os.Getenv("OPENROUTER_API_KEY") != "" {
         aiResult, err := deobfuscateWithAI(code)
+        if err != nil {
+            log.Println("AI error:", err)
+        }
         if err == nil && aiResult != "" && aiResult != code {
+            log.Println("AI result applied")
             response.OriginalCode = aiResult
             response.TransformationsApplied = append(response.TransformationsApplied, "ai_deobfuscate")
         }
+    } else {
+        log.Println("OPENROUTER_API_KEY not set")
     }
 
     return response
