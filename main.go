@@ -478,15 +478,15 @@ func deobfuscateWithAI(code string) (string, error) {
     Messages: []OpenRouterMessage{
         {
             Role: "system",
-            Content: "You are a code deobfuscator. STRICT RULES: Return ONLY the deobfuscated code. NO thinking, NO explanation, NO markdown, NO commentary, NO analysis. Output the code directly without any other text. If the code is already deobfuscated, return it as is.",
+            Content: "You are a code deobfuscator. Decode and restore the original code to its simplest form. Remove all obfuscation, all unnecessary variables, all dead code. Return ONLY the final code that actually does something. If the code just prints 'Hello World', return only that line.",
         },
         {
             Role: "user",
             Content: fmt.Sprintf("Deobfuscate this code:\n\n%s", code),
         },
     },
-    Temperature: 0.1,
-    MaxTokens: 1000,
+    Temperature: 0,
+    MaxTokens: 2000,
 }
 
     jsonData, _ := json.Marshal(reqBody)
