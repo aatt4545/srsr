@@ -224,7 +224,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
     }
 
     if strings.HasPrefix(m.Content, "!help") || strings.HasPrefix(m.Content, "/help") {
-        s.ChannelMessageSend(m.ChannelID, "使い方:\n/raw <URL>\n!raw <URL>\n!deobfuscate <コード>\nファイルを添付して !raw")
+        s.ChannelMessageSend(m.ChannelID, "使い方:\n/raw <URL>\n!raw <URL>\n!help <コード>\nファイルを添付して !raw")
     }
 }
 
