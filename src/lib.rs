@@ -50,7 +50,7 @@ impl Deobfuscator {
     pub fn new() -> Self {
         let mut transformers = Vec::new();
         
-        // ============ エスケープ解除（最初に1回だけ） ============
+        // ============ エスケープ解除 ============
         
         transformers.push(Transformer::new(
             "octal_escape", vec!["all"],
@@ -171,7 +171,7 @@ impl Deobfuscator {
             "lua_table_concat", vec!["lua"],
             Box::new(|code, _| {
                 let mut result = code.to_string();
-                let concat_re = Regex::new(r"table\.concat\((\w+),\s*['\"]([^'\"]*)['\"]\)").unwrap();
+                let concat_re = Regex::new(r#"table\.concat\((\w+),\s*['"]?([^'"]*)['"]?\)"#).unwrap();
                 
                 result = concat_re.replace_all(&result, |caps: &regex::Captures| {
                     caps[1].to_string()
