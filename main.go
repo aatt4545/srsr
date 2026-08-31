@@ -218,13 +218,13 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
         return
     }
 
-    if strings.HasPrefix(m.Content, "!deobfuscate") {
+    if strings.HasPrefix(m.Content, "!raw") {
         handleDeobfuscateCommand(s, m)
         return
     }
 
     if strings.HasPrefix(m.Content, "!help") || strings.HasPrefix(m.Content, "/help") {
-        s.ChannelMessageSend(m.ChannelID, "使い方:\n/raw <URL>\n!deobfuscate <URL>\n!deobfuscate <コード>\nファイルを添付して !deobfuscate")
+        s.ChannelMessageSend(m.ChannelID, "使い方:\n/raw <URL>\n!raw <URL>\n!deobfuscate <コード>\nファイルを添付して !raw")
     }
 }
 
