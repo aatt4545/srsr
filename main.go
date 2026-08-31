@@ -372,7 +372,7 @@ func deobfuscateWithAI(code string) (string, error) {
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
-                Content: "You are a code deobfuscator. Decode and restore the original code. Return only the deobfuscated code without any explanation or markdown.",
+                Content: "You are a code deobfuscator. Decode and restore the original code. Return ONLY the deobfuscated code. No explanations, no thinking process, no markdown. Just the code. If you think, don't show it. Output the code directly.",
             },
             {
                 Role: "user",
