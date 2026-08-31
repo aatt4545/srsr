@@ -360,15 +360,17 @@ func extractCode(content string) string {
 }
 
 func extractCodeFromAI(aiOutput string) string {
-    // コードブロックを抽出
     if strings.Contains(aiOutput, "```") {
         parts := strings.Split(aiOutput, "```")
         if len(parts) >= 2 {
-            return strings.TrimSpace(parts[1])
+            code := parts[1]
+            if idx := strings.Index(code, "\n"); idx != -1 {
+                code = code[idx+1:]
+            }
+            return strings.TrimSpace(code)
         }
     }
 
-    // そのまま返す
     return strings.TrimSpace(aiOutput)
 }
 
@@ -385,11 +387,11 @@ func deobfuscateWithAI(code string) (string, error) {
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
-                Content: "You are a code deobfuscator. Decode and restore the original code. Return ONLY the deobfuscated code. No thinking, no explanation, no markdown. Just the code.",
+                Content: "You are a code deobfuscator. This code is already partially deobfuscated. Complete the deobfuscation. Remove ALL unnecessary variables, dead code, and obfuscation patterns. Return ONLY the code that actually does something meaningful. No explanations, no markdown. Just the final code.",
             },
             {
                 Role: "user",
-                Content: fmt.Sprintf("Deobfuscate this code:\n\n%s", code),
+                Content: fmt.Sprintf("Complete the deobfuscation of this code:\n\n%s", code),
             },
         },
         Temperature: 0.1,
@@ -445,7 +447,8 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
     json.Unmarshal([]byte(jsonStr), &response)
 
     if os.Getenv("OPENROUTER_API_KEY") != "" {
-        aiResult, err := deobfuscateWithAI(code)
+        // Rustで部分解読した結果をAIに渡す
+        aiResult, err := deobfuscateWithAI(response.OriginalCode)
         if err != nil {
             log.Println("AI error:", err)
         }
