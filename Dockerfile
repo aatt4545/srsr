@@ -10,6 +10,7 @@ FROM golang:1.21 AS go-builder
 WORKDIR /app
 COPY go.mod ./
 RUN go mod download
+RUN go mod tidy
 COPY . .
 RUN go build -o deobfuscator-server
 
