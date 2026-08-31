@@ -359,6 +359,112 @@ func extractCode(content string) string {
     return ""
 }
 
+func extractCodeFromAI(aiOutput string) string {
+    // コードブロックを抽出
+    if strings.Contains(aiOutput, "```") {
+        parts := strings.Split(aiOutput, "```")
+        if len(parts) >= 2 {
+            code := parts[1]
+            if idx := strings.Index(code, "\n"); idx != -1 {
+                code = code[idx+1:]
+            }
+            return strings.TrimSpace(code)
+        }
+    }
+
+    // コードっぽい行だけ抽出
+    lines := strings.Split(aiOutput, "\n")
+    var codeLines []string
+
+    for _, line := range lines {
+        trimmed := strings.TrimSpace(line)
+
+        // 説明や思考過程っぽい行をスキップ
+        if strings.Contains(trimmed, "Here's") ||
+           strings.Contains(trimmed, "Analyze") ||
+           strings.Contains(trimmed, "Step") ||
+           strings.Contains(trimmed, "Let's") ||
+           strings.Contains(trimmed, "The") ||
+           strings.Contains(trimmed, "This") ||
+           strings.Contains(trimmed, "I") ||
+           strings.Contains(trimmed, "We") ||
+           strings.Contains(trimmed, "So") ||
+           strings.Contains(trimmed, "Wait") ||
+           strings.Contains(trimmed, "Actually") ||
+           strings.Contains(trimmed, "Maybe") ||
+           strings.Contains(trimmed, "Now") ||
+           strings.Contains(trimmed, "Then") ||
+           strings.Contains(trimmed, "Therefore") ||
+           strings.Contains(trimmed, "However") ||
+           strings.Contains(trimmed, "But") ||
+           strings.Contains(trimmed, "And") ||
+           strings.Contains(trimmed, "Or") ||
+           strings.Contains(trimmed, "If") ||
+           strings.Contains(trimmed, "In") ||
+           strings.Contains(trimmed, "On") ||
+           strings.Contains(trimmed, "At") ||
+           strings.Contains(trimmed, "From") ||
+           strings.Contains(trimmed, "To") ||
+           strings.Contains(trimmed, "With") ||
+           strings.Contains(trimmed, "Without") ||
+           strings.Contains(trimmed, "Note") ||
+           strings.Contains(trimmed, "Note:") ||
+           strings.Contains(trimmed, "Output") ||
+           strings.Contains(trimmed, "Input") ||
+           strings.Contains(trimmed, "Result") ||
+           strings.Contains(trimmed, "Answer") ||
+           strings.Contains(trimmed, "Solution") ||
+           strings.Contains(trimmed, "Explanation") ||
+           strings.Contains(trimmed, "Deobfuscated") ||
+           strings.Contains(trimmed, "Obfuscated") ||
+           strings.Contains(trimmed, "Code:") ||
+           strings.Contains(trimmed, "Original") ||
+           strings.Contains(trimmed, "Restored") ||
+           strings.Contains(trimmed, "Final") ||
+           strings.Contains(trimmed, "Here's a thinking") ||
+           strings.Contains(trimmed, "Let's") ||
+           strings.Contains(trimmed, "1.") ||
+           strings.Contains(trimmed, "2.") ||
+           strings.Contains(trimmed, "3.") ||
+           strings.Contains(trimmed, "4.") ||
+           strings.Contains(trimmed, "5.") ||
+           strings.Contains(trimmed, "-") ||
+           strings.Contains(trimmed, "*") {
+            continue
+        }
+
+        // コードっぽい行を追加
+        if strings.Contains(trimmed, "console.log") ||
+           strings.Contains(trimmed, "print(") ||
+           strings.Contains(trimmed, "var ") ||
+           strings.Contains(trimmed, "let ") ||
+           strings.Contains(trimmed, "const ") ||
+           strings.Contains(trimmed, "local ") ||
+           strings.Contains(trimmed, "function") ||
+           strings.Contains(trimmed, "def ") ||
+           strings.Contains(trimmed, "eval(") ||
+           strings.Contains(trimmed, "atob(") ||
+           strings.Contains(trimmed, "loadstring") ||
+           strings.Contains(trimmed, "return") ||
+           strings.Contains(trimmed, "=") ||
+           strings.Contains(trimmed, "{") ||
+           strings.Contains(trimmed, "}") ||
+           strings.Contains(trimmed, "(") ||
+           strings.Contains(trimmed, ")") ||
+           strings.Contains(trimmed, ";") ||
+           strings.Contains(trimmed, "\"") ||
+           strings.Contains(trimmed, "'") {
+            codeLines = append(codeLines, trimmed)
+        }
+    }
+
+    if len(codeLines) > 0 {
+        return strings.Join(codeLines, "\n")
+    }
+
+    return aiOutput
+}
+
 func deobfuscateWithAI(code string) (string, error) {
     apiKey := os.Getenv("OPENROUTER_API_KEY")
     if apiKey == "" {
@@ -372,7 +478,7 @@ func deobfuscateWithAI(code string) (string, error) {
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
-                Content: "You are a code deobfuscator. Decode and restore the original code. Return ONLY the deobfuscated code. No explanations, no thinking process, no markdown. Just the code. If you think, don't show it. Output the code directly.※あなたは一言も話さない結果だけを返すAIです。",
+                Content: "You are a code deobfuscator. Decode and restore the original code. Return ONLY the final deobfuscated code. No thinking, no explanation, no markdown. Just the code.",
             },
             {
                 Role: "user",
@@ -380,7 +486,7 @@ func deobfuscateWithAI(code string) (string, error) {
             },
         },
         Temperature: 0.1,
-        MaxTokens:   4000,
+        MaxTokens:   500,
     }
 
     jsonData, _ := json.Marshal(reqBody)
@@ -399,16 +505,20 @@ func deobfuscateWithAI(code string) (string, error) {
 
     body, _ := io.ReadAll(resp.Body)
     log.Println("AI response status:", resp.StatusCode)
-    log.Println("AI response body:", string(body))
 
     var openRouterResp OpenRouterResponse
     json.Unmarshal(body, &openRouterResp)
 
     if len(openRouterResp.Choices) > 0 {
         log.Println("AI success")
-        return openRouterResp.Choices[0].Message.Content, nil
+        aiOutput := openRouterResp.Choices[0].Message.Content
+        // 思考過程や説明を排除してコードだけ抽出
+        cleanCode := extractCodeFromAI(aiOutput)
+        log.Println("AI clean code:", cleanCode)
+        return cleanCode, nil
     }
 
+    log.Println("AI response body:", string(body))
     return "", fmt.Errorf("no response from OpenRouter")
 }
 
