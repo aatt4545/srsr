@@ -10,6 +10,10 @@ FROM golang:1.21 AS go-builder
 WORKDIR /app
 COPY go.mod ./
 COPY main.go ./
+
+# Rustビルド成果物をコピー
+COPY --from=rust-builder /app/target/release/libdeobfuscator.so ./target/release/
+
 RUN go mod tidy
 RUN go mod download
 RUN go build -o deobfuscator-server
