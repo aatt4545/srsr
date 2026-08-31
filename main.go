@@ -360,17 +360,17 @@ func extractCode(content string) string {
 }
 
 func extractCodeFromAI(aiOutput string) string {
-    // コードブロックを抽出
+    // コードブロックがあれば抽出
     if strings.Contains(aiOutput, "```") {
         parts := strings.Split(aiOutput, "```")
         if len(parts) >= 2 {
-            code := parts[1]
-            if idx := strings.Index(code, "\n"); idx != -1 {
-                code = code[idx+1:]
-            }
-            return strings.TrimSpace(code)
+            return strings.TrimSpace(parts[1])
         }
     }
+    
+    // そのまま返す（トリムだけ）
+    return strings.TrimSpace(aiOutput)
+}
 
     // コードっぽい行だけ抽出
     lines := strings.Split(aiOutput, "\n")
