@@ -206,9 +206,83 @@ func executeInSandbox(code string, language string) string {
         }
 
     case "lua":
-        // Roblox APIスタブを作成
-        stub := `local game = {
-    GetService = function(self, service)
+        // Roblox APIスタブ（_Gメタテーブル方式）
+        stub := `setmetatable(_G, {
+    __index = function(t, k)
+        if k == "game" then
+            local gameStub = {}
+            gameStub.__index = gameStub
+            setmetatable(gameStub, {
+                __index = function(_, service)
+                    local services = {
+                        Players = {
+                            LocalPlayer = { Name = "Player", UserId = 0 },
+                            GetPlayers = function() return {} end
+                        },
+                        Workspace = {},
+                        ReplicatedStorage = {},
+                        ServerScriptService = {},
+                        UserInputService = {},
+                        TweenService = {},
+                        HttpService = {
+                            JSONEncode = function(_, data) return tostring(data) end,
+                            JSONDecode = function(_, data) return {} end
+                        },
+                        RunService = {},
+                        Lighting = {},
+                        SoundService = {},
+                        StarterGui = {},
+                        StarterPack = {},
+                        Teams = {}
+                    }
+                    return services[service] or {}
+                end
+            })
+            gameStub.GetService = function(self, service)
+                local services = {
+                    Players = {
+                        LocalPlayer = { Name = "Player", UserId = 0 },
+                        GetPlayers = function() return {} end
+                    },
+                    Workspace = {},
+                    ReplicatedStorage = {},
+                    ServerScriptService = {},
+                    UserInputService = {},
+                    TweenService = {},
+                    HttpService = {
+                        JSONEncode = function(_, data) return tostring(data) end,
+                        JSONDecode = function(_, data) return {} end
+                    },
+                    RunService = {},
+                    Lighting = {},
+                    SoundService = {},
+                    StarterGui = {},
+                    StarterPack = {},
+                    Teams = {}
+                }
+                return services[service] or {}
+            end
+            return gameStub
+        end
+        if k == "workspace" then return {} end
+        if k == "Players" then
+            return {
+                LocalPlayer = { Name = "Player", UserId = 0 },
+                GetPlayers = function() return {} end
+            }
+        end
+        if k == "LocalPlayer" then return { Name = "Player", UserId = 0 } end
+        if k == "print" then return function(...) local args = {...} for i, v in ipairs(args) do io.write(tostring(v)) if i < #args then io.write(" ") end end io.write("\n") end end
+        if k == "warn" then return function(...) end end
+        if k == "wait" then return function() return 0 end end
+        if k == "spawn" then return function(f) if f then f() end end end
+        if k == "delay" then return function(t, f) if f then f() end end end
+        return nil
+    end
+})
+
+_G.game = setmetatable({}, {
+    __index = function(_, service)
         local services = {
             Players = {
                 LocalPlayer = { Name = "Player", UserId = 0 },
@@ -219,7 +293,10 @@ func executeInSandbox(code string, language string) string {
             ServerScriptService = {},
             UserInputService = {},
             TweenService = {},
-            HttpService = {},
+            HttpService = {
+                JSONEncode = function(_, data) return tostring(data) end,
+                JSONDecode = function(_, data) return {} end
+            },
             RunService = {},
             Lighting = {},
             SoundService = {},
@@ -229,16 +306,42 @@ func executeInSandbox(code string, language string) string {
         }
         return services[service] or {}
     end
-}
+})
 
-local workspace = game:GetService("Workspace")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local print = print or function(...) end
+_G.game.GetService = function(self, service)
+    local services = {
+        Players = {
+            LocalPlayer = { Name = "Player", UserId = 0 },
+            GetPlayers = function() return {} end
+        },
+        Workspace = {},
+        ReplicatedStorage = {},
+        ServerScriptService = {},
+        UserInputService = {},
+        TweenService = {},
+        HttpService = {
+            JSONEncode = function(_, data) return tostring(data) end,
+            JSONDecode = function(_, data) return {} end
+        },
+        RunService = {},
+        Lighting = {},
+        SoundService = {},
+        StarterGui = {},
+        StarterPack = {},
+        Teams = {}
+    }
+    return services[service] or {}
+end
+
+_G.workspace = {}
+_G.Players = {
+    LocalPlayer = { Name = "Player", UserId = 0 },
+    GetPlayers = function() return {} end
+}
+_G.LocalPlayer = { Name = "Player", UserId = 0 }
 
 `
 
-        // スタブ＋コードを書き込む
         stubFile, err := os.CreateTemp("", "sandbox-lua-*")
         if err != nil {
             log.Println("Failed to create stub file:", err.Error())
@@ -252,14 +355,12 @@ local print = print or function(...) end
         }
         stubFile.Close()
 
-        // Lua 5.4で試す
         cmd54 := exec.CommandContext(ctx, "lua5.4", stubFile.Name())
         cmd54.Stdout = &stdout
         cmd54.Stderr = &stderr
         err = cmd54.Run()
 
         if err != nil {
-            // Lua 5.1で試す
             log.Println("Lua 5.4 failed, trying Lua 5.1...")
             stdout.Reset()
             stderr.Reset()
@@ -270,7 +371,6 @@ local print = print or function(...) end
         }
 
         if err != nil {
-            // Luauで試す
             log.Println("Lua 5.1 failed, trying Luau...")
             stdout.Reset()
             stderr.Reset()
