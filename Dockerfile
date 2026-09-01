@@ -19,7 +19,13 @@ RUN go build -o deobfuscator-server
 
 FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    nodejs \
+    npm \
+    lua5.4 \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=go-builder /app/deobfuscator-server .
