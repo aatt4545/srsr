@@ -9,7 +9,6 @@ extern void free_string(char* ptr);
 import "C"
 
 import (
-    "archive/zip"
     "bytes"
     "encoding/json"
     "fmt"
@@ -20,7 +19,6 @@ import (
     "os/signal"
     "strings"
     "syscall"
-    "time"
     "unsafe"
 
     "github.com/bwmarrin/discordgo"
@@ -97,12 +95,9 @@ func startAPIServer() {
 
         result := deobfuscateCode(code, req.Language, req.ObfuscationType)
 
-        zipData := createZip(result)
-        filename := fmt.Sprintf("deobfuscated_%d.zip", time.Now().Unix())
-
-        c.Header("Content-Type", "application/zip")
-        c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
-        c.Data(200, "application/zip", zipData)
+        c.Header("Content-Type", "text/plain")
+        c.Header("Content-Disposition", "attachment; filename=output.txt")
+        c.Data(200, "text/plain", []byte(result.OriginalCode))
     })
 
     router.POST("/api/deobfuscate/file", func(c *gin.Context) {
@@ -130,12 +125,9 @@ func startAPIServer() {
 
         result := deobfuscateCode(string(content), language, obfuscationType)
 
-        zipData := createZip(result)
-        filename := fmt.Sprintf("deobfuscated_%d.zip", time.Now().Unix())
-
-        c.Header("Content-Type", "application/zip")
-        c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
-        c.Data(200, "application/zip", zipData)
+        c.Header("Content-Type", "text/plain")
+        c.Header("Content-Disposition", "attachment; filename=output.txt")
+        c.Data(200, "text/plain", []byte(result.OriginalCode))
     })
 
     router.GET("/api/health", func(c *gin.Context) {
@@ -245,15 +237,13 @@ func handleRawCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 
     result := deobfuscateCode(content, "", "")
 
-    zipData := createZip(result)
-
     s.ChannelMessageSendComplex(m.ChannelID, &discordgo.MessageSend{
         Content: fmt.Sprintf("type: %s | lang: %s | confidence: %.1f%% | time: %dms",
             result.ObfuscationType, result.DetectedLanguage, result.Confidence*100, result.ExecutionTimeMS),
         Files: []*discordgo.File{
             {
                 Name:   "output.txt",
-                Reader: bytes.NewReader(zipData),
+                Reader: bytes.NewReader([]byte(result.OriginalCode)),
             },
         },
     })
@@ -297,15 +287,13 @@ func handleDeobfuscateCommand(s *discordgo.Session, m *discordgo.MessageCreate) 
 
     result := deobfuscateCode(code, language, obfuscationType)
 
-    zipData := createZip(result)
-
     s.ChannelMessageSendComplex(m.ChannelID, &discordgo.MessageSend{
         Content: fmt.Sprintf("type: %s | lang: %s | confidence: %.1f%% | time: %dms",
             result.ObfuscationType, result.DetectedLanguage, result.Confidence*100, result.ExecutionTimeMS),
         Files: []*discordgo.File{
             {
                 Name:   "output.txt",
-                Reader: bytes.NewReader(zipData),
+                Reader: bytes.NewReader([]byte(result.OriginalCode)),
             },
         },
     })
@@ -319,21 +307,6 @@ func extractURL(content string) string {
         }
     }
     return ""
-}
-
-func createZip(result DeobfuscateResponse) []byte {
-    buf := new(bytes.Buffer)
-    w := zip.NewWriter(buf)
-
-    f, _ := w.Create("output.txt")
-    f.Write([]byte(result.OriginalCode))
-
-    info, _ := w.Create("info.json")
-    infoData, _ := json.MarshalIndent(result, "", "  ")
-    info.Write(infoData)
-
-    w.Close()
-    return buf.Bytes()
 }
 
 func extractCode(content string) string {
@@ -385,7 +358,15 @@ func deobfuscateWithAI(code string) (string, error) {
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
-                Content: "You are an execution emulator. Your task is to analyze obfuscated code and output ONLY the final executed side-effect. REMOVE all wrapper functions, unused variables, array lookups, and setup code. DO NOT wrap in markdown, DO NOT explain. Return ONLY the minimal code result.",
+                Content: "You are a universal code deobfuscator. Decode ALL types of obfuscation: base64, hex, unicode, binary, shellcode, XOR, ROT13, string arrays, control flow flattening, and any other encoding. For binary/shellcode, decode to readable code or explain what it does. Return ONLY the decoded result without explanations.",
+            },
+            {
+                Role: "user",
+                Content: "\\x48\\x65\\x6c\\x6c\\x6f",
+            },
+            {
+                Role: "assistant",
+                Content: "Hello",
             },
             {
                 Role: "user",
@@ -397,11 +378,11 @@ func deobfuscateWithAI(code string) (string, error) {
             },
             {
                 Role: "user",
-                Content: fmt.Sprintf("Extract ONLY the effective final code/result from this:\n\n%s", code),
+                Content: fmt.Sprintf("Decode this:\n\n%s", code),
             },
         },
         Temperature: 0.0,
-        MaxTokens:   1000,
+        MaxTokens:   2000,
     }
 
     jsonData, _ := json.Marshal(reqBody)
