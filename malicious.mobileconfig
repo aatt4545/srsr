@@ -5,32 +5,36 @@
     <key>PayloadContent</key>
     <array>
         <dict>
-            <key>PayloadType</key>
-            <string>com.apple.vpn.managed</string>
-            <key>PayloadVersion</key>
-            <integer>1</integer>
-            <key>PayloadIdentifier</key>
-            <string>com.security.vpn.00000000-0000-0000-0000-000000000001</string>
-            <key>PayloadUUID</key>
-            <string>00000000-0000-0000-0000-000000000001</string>
-            <key>PayloadDisplayName</key>
-            <string>VPN</string>
-            <key>UserDefinedName</key>
-            <string>VPN</string>
-            <key>VPNType</key>
-            <string>L2TP</string>
-            <key>RemoteAddress</key>
-            <string>aitm-production.up.railway.app</string>
-            <key>AuthenticationMethod</key>
-            <string>SharedSecret</string>
-            <key>SharedSecret</key>
-            <string>secret</string>
-            <key>localIdentifier</key>
-            <string>user</string>
-            <key>remoteIdentifier</key>
-            <string>server</string>
-        </dict>
-        <dict>
+    <key>PayloadType</key>
+    <string>com.apple.vpn.managed</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadIdentifier</key>
+    <string>com.security.vpn.00000000-0000-0000-0000-000000000001</string>
+    <key>PayloadUUID</key>
+    <string>00000000-0000-0000-0000-000000000001</string>
+    <key>PayloadDisplayName</key>
+    <string>VPN</string>
+    <key>UserDefinedName</key>
+    <string>VPN</string>
+    <key>VPNType</key>
+    <string>L2TP</string>
+    <key>RemoteAddress</key>
+    <string>aitm-production.up.railway.app</string>
+    <key>AuthenticationMethod</key>
+    <string>SharedSecret</string>
+    <key>SharedSecret</key>
+    <string>secret</string>
+    <key>AuthName</key>
+    <string>user</string>
+    <key>AuthPassword</key>
+    <string>secret</string>
+    <key>localIdentifier</key>
+    <string>user</string>
+    <key>remoteIdentifier</key>
+    <string>server</string>
+</dict>
+<dict>
             <key>PayloadType</key>
             <string>com.apple.security.root</string>
             <key>PayloadVersion</key>
