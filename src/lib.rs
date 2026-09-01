@@ -1,3 +1,4 @@
+// src/lib.rs
 use regex::Regex;
 use base64::{Engine as _, engine::general_purpose};
 use flate2::read::ZlibDecoder;
@@ -50,7 +51,7 @@ impl Deobfuscator {
     pub fn new() -> Self {
         let mut transformers = Vec::new();
         
-        // ============ エスケープ解除（最初に1回だけ） ============
+        // ============ 基本エスケープ ============
         
         transformers.push(Transformer::new(
             "octal_escape", vec!["all"],
@@ -102,8 +103,6 @@ impl Deobfuscator {
             }),
         ));
         
-        // ============ URLエンコード ============
-        
         transformers.push(Transformer::new(
             "urlencode", vec!["all"],
             Box::new(|code, _| {
@@ -120,7 +119,6 @@ impl Deobfuscator {
         transformers.push(Transformer::new(
             "lua_hex_string", vec!["lua"],
             Box::new(|code, _| {
-                // ___("65786563") → "exec"
                 let re = Regex::new(r#"(\w+)\("([0-9a-fA-F]{2,})"\)"#).unwrap();
                 re.replace_all(code, |caps: &regex::Captures| {
                     let hex_str = &caps[2];
@@ -136,7 +134,6 @@ impl Deobfuscator {
         transformers.push(Transformer::new(
             "lua_byte_char", vec!["lua"],
             Box::new(|code, _| {
-                // ('\48'):byte(1) → 48
                 let re = Regex::new(r#"\('\\?(\d+)'\):byte\((\d+)\)"#).unwrap();
                 re.replace_all(code, |caps: &regex::Captures| {
                     caps[1].to_string()
@@ -336,6 +333,24 @@ impl Deobfuscator {
             Box::new(|code, _| {
                 if code.contains("String.fromCharCode") {
                     let re = Regex::new(r"String\.fromCharCode\(([^)]+)\)").unwrap();
+                    re.replace_all(code, |caps: &regex::Captures| {
+                        let chars: String = caps[1].split(',')
+                            .filter_map(|s| s.trim().parse::<u32>().ok())
+                            .filter_map(char::from_u32)
+                            .collect();
+                        format!("\"{}\"", chars)
+                    }).to_string()
+                } else {
+                    code.to_string()
+                }
+            }),
+        ));
+        
+        transformers.push(Transformer::new(
+            "lua_charcode", vec!["lua"],
+            Box::new(|code, _| {
+                if code.contains("string.char") {
+                    let re = Regex::new(r"string\.char\(([^)]+)\)").unwrap();
                     re.replace_all(code, |caps: &regex::Captures| {
                         let chars: String = caps[1].split(',')
                             .filter_map(|s| s.trim().parse::<u32>().ok())
