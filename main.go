@@ -71,7 +71,9 @@ func main() {
 }
 
 func startAPIServer() {
-    router := gin.Default()
+    gin.SetMode(gin.ReleaseMode)
+    router := gin.New()
+    router.Use(gin.Recovery())
 
     router.POST("/api/deobfuscate", func(c *gin.Context) {
         var req DeobfuscateRequest
@@ -177,18 +179,16 @@ func fetchFromURL(url string) (string, error) {
 }
 
 func executeInSandbox(code string, language string) string {
-    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
     defer cancel()
 
     tmpFile, err := os.CreateTemp("", "sandbox-*")
     if err != nil {
-        log.Println("Failed to create temp file:", err.Error())
         return ""
     }
     defer os.Remove(tmpFile.Name())
 
     if _, err := tmpFile.WriteString(code); err != nil {
-        log.Println("Failed to write temp file:", err.Error())
         return ""
     }
     tmpFile.Close()
@@ -201,154 +201,106 @@ func executeInSandbox(code string, language string) string {
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
     case "lua":
-        // MoonVeil完全対応スタブ
-        stub := `local getfenv = getfenv or function(f) if f == 0 or f == nil then return _G end return f end
+        stub := `-- bit32完全実装
 local bit32 = bit32 or {}
 if not bit32.bxor then
     bit32.bxor = function(a, b)
-        local result = 0
-        local bitval = 1
-        a = a or 0
-        b = b or 0
+        local r, v = 0, 1
+        a, b = a or 0, b or 0
         while a > 0 or b > 0 do
-            local abit = a % 2
-            local bbit = b % 2
-            if abit ~= bbit then
-                result = result + bitval
-            end
-            a = math.floor(a / 2)
-            b = math.floor(b / 2)
-            bitval = bitval * 2
+            if a % 2 ~= b % 2 then r = r + v end
+            a, b, v = math.floor(a/2), math.floor(b/2), v*2
         end
-        return result
+        return r
     end
 end
 if not bit32.band then
     bit32.band = function(a, b)
-        local result = 0
-        local bitval = 1
-        a = a or 0
-        b = b or 0
+        local r, v = 0, 1
+        a, b = a or 0, b or 0
         while a > 0 and b > 0 do
-            if a % 2 == 1 and b % 2 == 1 then
-                result = result + bitval
-            end
-            a = math.floor(a / 2)
-            b = math.floor(b / 2)
-            bitval = bitval * 2
+            if a % 2 == 1 and b % 2 == 1 then r = r + v end
+            a, b, v = math.floor(a/2), math.floor(b/2), v*2
         end
-        return result
+        return r
     end
 end
 if not bit32.bor then
     bit32.bor = function(a, b)
-        local result = 0
-        local bitval = 1
-        a = a or 0
-        b = b or 0
+        local r, v = 0, 1
+        a, b = a or 0, b or 0
         while a > 0 or b > 0 do
-            if a % 2 == 1 or b % 2 == 1 then
-                result = result + bitval
-            end
-            a = math.floor(a / 2)
-            b = math.floor(b / 2)
-            bitval = bitval * 2
+            if a % 2 == 1 or b % 2 == 1 then r = r + v end
+            a, b, v = math.floor(a/2), math.floor(b/2), v*2
         end
-        return result
+        return r
     end
 end
-if not bit32.lshift then
-    bit32.lshift = function(a, b)
-        return math.floor(a * (2 ^ b))
-    end
-end
-if not bit32.rshift then
-    bit32.rshift = function(a, b)
-        return math.floor(a / (2 ^ b))
-    end
-end
+if not bit32.lshift then bit32.lshift = function(a, b) return math.floor(a * (2 ^ b)) end end
+if not bit32.rshift then bit32.rshift = function(a, b) return math.floor(a / (2 ^ b)) end end
 
-local stringChar = string.char
-local stringByte = string.byte
-
-_G.stringChar = stringChar
-_G.stringByte = stringByte
-
-_G.game = {
-    GetService = function(self, service)
-        local services = {
-            Players = {
-                LocalPlayer = { Name = "Player", UserId = 0 },
-                GetPlayers = function() return {} end
-            },
-            Workspace = {},
-            ReplicatedStorage = {},
-            ServerScriptService = {},
-            UserInputService = {},
-            TweenService = {},
-            HttpService = {
-                JSONEncode = function(_, data) return tostring(data) end,
-                JSONDecode = function(_, data) return {} end
-            },
-            RunService = {},
-            Lighting = {},
-            SoundService = {},
-            StarterGui = {},
-            StarterPack = {},
-            Teams = {}
-        }
-        return services[service] or {}
-    end
-}
-
-_G.workspace = {}
-_G.Players = {
+-- サンドボックス環境
+local sandbox = {
+    print = function(...)
+        local args = {...}
+        for i, v in ipairs(args) do
+            io.write(tostring(v))
+            if i < #args then io.write(" ") end
+        end
+        io.write("\n")
+    end,
+    warn = function(...) end,
+    wait = function() return 0 end,
+    spawn = function(f) if f then f() end end,
+    delay = function(t, f) if f then f() end end,
+    game = {
+        GetService = function(self, service)
+            local services = {
+                Players = { LocalPlayer = { Name = "Player", UserId = 0 }, GetPlayers = function() return {} end },
+                Workspace = {}, ReplicatedStorage = {}, ServerScriptService = {},
+                UserInputService = {}, TweenService = {},
+                HttpService = { JSONEncode = function(_, d) return tostring(d) end, JSONDecode = function(_, d) return {} end },
+                RunService = {}, Lighting = {}, SoundService = {},
+                StarterGui = {}, StarterPack = {}, Teams = {}
+            }
+            return services[service] or {}
+        end
+    },
+    workspace = {},
+    Players = { LocalPlayer = { Name = "Player", UserId = 0 }, GetPlayers = function() return {} end },
     LocalPlayer = { Name = "Player", UserId = 0 },
-    GetPlayers = function() return {} end
+    bit32 = bit32,
+    stringChar = string.char,
+    stringByte = string.byte
 }
-_G.LocalPlayer = { Name = "Player", UserId = 0 }
-_G.print = function(...) 
-    local args = {...} 
-    for i, v in ipairs(args) do 
-        io.write(tostring(v)) 
-        if i < #args then io.write(" ") end 
-    end 
-    io.write("\n") 
-end
-_G.warn = function(...) end
-_G.wait = function() return 0 end
-_G.spawn = function(f) if f then f() end end
-_G.delay = function(t, f) if f then f() end end
+setmetatable(sandbox, { __index = _G })
 
+local chunk = assert(loadstring(code))
+setfenv(chunk, sandbox)
+chunk()
 `
 
         stubFile, err := os.CreateTemp("", "sandbox-lua-*")
         if err != nil {
-            log.Println("Failed to create stub file:", err.Error())
             return ""
         }
         defer os.Remove(stubFile.Name())
 
-        if _, err := stubFile.WriteString(stub + code); err != nil {
-            log.Println("Failed to write stub file:", err.Error())
+        if _, err := stubFile.WriteString(stub + "\nlocal code = [[" + code + "]]\n"); err != nil {
             return ""
         }
         stubFile.Close()
 
-        // Lua 5.1で試す
         cmd51 := exec.CommandContext(ctx, "lua5.1", stubFile.Name())
         cmd51.Stdout = &stdout
         cmd51.Stderr = &stderr
         err = cmd51.Run()
 
         if err != nil {
-            // Lua 5.4で試す
-            log.Println("Lua 5.1 failed, trying Lua 5.4...")
             stdout.Reset()
             stderr.Reset()
             cmd54 := exec.CommandContext(ctx, "lua5.4", stubFile.Name())
@@ -358,8 +310,6 @@ _G.delay = function(t, f) if f then f() end end
         }
 
         if err != nil {
-            // Luauで試す
-            log.Println("Lua 5.4 failed, trying Luau...")
             stdout.Reset()
             stderr.Reset()
             cmdLuau := exec.CommandContext(ctx, "luau", stubFile.Name())
@@ -369,8 +319,6 @@ _G.delay = function(t, f) if f then f() end end
         }
 
         if err != nil {
-            log.Println("All Lua versions failed:", err.Error())
-            log.Println("Stderr:", stderr.String())
             return ""
         }
 
@@ -379,7 +327,6 @@ _G.delay = function(t, f) if f then f() end end
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
@@ -388,7 +335,6 @@ _G.delay = function(t, f) if f then f() end end
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
@@ -397,7 +343,6 @@ _G.delay = function(t, f) if f then f() end end
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
@@ -406,39 +351,32 @@ _G.delay = function(t, f) if f then f() end end
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
     case "c":
         outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
         defer os.Remove(outputFile)
-        compileCmd := exec.CommandContext(ctx, "gcc", tmpFile.Name(), "-o", outputFile)
-        if err := compileCmd.Run(); err != nil {
-            log.Println("Compile error:", err.Error())
+        if err := exec.CommandContext(ctx, "gcc", tmpFile.Name(), "-o", outputFile).Run(); err != nil {
             return ""
         }
         cmd := exec.CommandContext(ctx, outputFile)
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
     case "cpp":
         outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
         defer os.Remove(outputFile)
-        compileCmd := exec.CommandContext(ctx, "g++", tmpFile.Name(), "-o", outputFile)
-        if err := compileCmd.Run(); err != nil {
-            log.Println("Compile error:", err.Error())
+        if err := exec.CommandContext(ctx, "g++", tmpFile.Name(), "-o", outputFile).Run(); err != nil {
             return ""
         }
         cmd := exec.CommandContext(ctx, outputFile)
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
@@ -450,7 +388,6 @@ _G.delay = function(t, f) if f then f() end end
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
@@ -459,7 +396,6 @@ _G.delay = function(t, f) if f then f() end end
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
@@ -468,7 +404,6 @@ _G.delay = function(t, f) if f then f() end end
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
@@ -477,23 +412,19 @@ _G.delay = function(t, f) if f then f() end end
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
     case "rust":
         outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
         defer os.Remove(outputFile)
-        compileCmd := exec.CommandContext(ctx, "rustc", tmpFile.Name(), "-o", outputFile)
-        if err := compileCmd.Run(); err != nil {
-            log.Println("Compile error:", err.Error())
+        if err := exec.CommandContext(ctx, "rustc", tmpFile.Name(), "-o", outputFile).Run(); err != nil {
             return ""
         }
         cmd := exec.CommandContext(ctx, outputFile)
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
@@ -502,7 +433,6 @@ _G.delay = function(t, f) if f then f() end end
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
@@ -511,7 +441,6 @@ _G.delay = function(t, f) if f then f() end end
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
@@ -520,7 +449,6 @@ _G.delay = function(t, f) if f then f() end end
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
-            log.Println("Sandbox error:", err.Error())
             return ""
         }
 
@@ -533,14 +461,12 @@ _G.delay = function(t, f) if f then f() end end
         output = stderr.String()
     }
 
-    log.Println("Sandbox output:", output)
     return strings.TrimSpace(output)
 }
 
 func startDiscordBot() {
     token := os.Getenv("DISCORD_BOT_TOKEN")
     if token == "" {
-        log.Println("DISCORD_BOT_TOKEN not set, skipping Discord Bot")
         select {}
     }
 
@@ -596,7 +522,7 @@ func handleRawCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 
     content, err := fetchFromURL(url)
     if err != nil {
-        s.ChannelMessageSend(m.ChannelID, "failed to fetch URL: "+err.Error())
+        s.ChannelMessageSend(m.ChannelID, "failed to fetch URL")
         return
     }
 
@@ -623,7 +549,7 @@ func handleDeobfuscateCommand(s *discordgo.Session, m *discordgo.MessageCreate) 
         attachment := m.Attachments[0]
         content, err := fetchFromURL(attachment.URL)
         if err != nil {
-            s.ChannelMessageSend(m.ChannelID, "failed to fetch attachment: "+err.Error())
+            s.ChannelMessageSend(m.ChannelID, "failed to fetch attachment")
             return
         }
         code = content
@@ -638,7 +564,7 @@ func handleDeobfuscateCommand(s *discordgo.Session, m *discordgo.MessageCreate) 
         if url != "" {
             content, err := fetchFromURL(url)
             if err != nil {
-                s.ChannelMessageSend(m.ChannelID, "failed to fetch URL: "+err.Error())
+                s.ChannelMessageSend(m.ChannelID, "failed to fetch URL")
                 return
             }
             code = content
@@ -767,7 +693,7 @@ func deobfuscateWithAI(code string, sandboxOutput string) (string, error) {
 }
 
 func deobfuscateCode(code string, language string, obfuscationType string) DeobfuscateResponse {
-    response := DeobfuscateResponse{}
+    response := DeobfuscateResponse{OriginalCode: code}
 
     cCode := C.CString(code)
     cLang := C.CString(language)
@@ -776,10 +702,12 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
     defer C.free(unsafe.Pointer(cLang))
 
     result := C.deobfuscate_code(cCode, cLang)
+    if result == nil {
+        return response
+    }
     defer C.free_string(result)
 
     jsonStr := C.GoString(result)
-
     json.Unmarshal([]byte(jsonStr), &response)
 
     detectedLang := response.DetectedLanguage
@@ -789,14 +717,12 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
 
     sandboxOutput := ""
     if detectedLang != "" && detectedLang != "unknown" && detectedLang != "html" && detectedLang != "json" && detectedLang != "xml" {
-        log.Println("Running sandbox for:", detectedLang)
-        sandboxOutput = executeInSandbox(code, detectedLang)
-        log.Println("Sandbox output:", sandboxOutput)
+        sandboxOutput = executeInSandbox(response.OriginalCode, detectedLang)
     }
 
     if os.Getenv("OPENROUTER_API_KEY") != "" {
         aiResult, err := deobfuscateWithAI(response.OriginalCode, sandboxOutput)
-        if err == nil && aiResult != "" && aiResult != code {
+        if err == nil && aiResult != "" && aiResult != response.OriginalCode {
             response.OriginalCode = aiResult
             response.TransformationsApplied = append(response.TransformationsApplied, "ai_deobfuscate")
         }
