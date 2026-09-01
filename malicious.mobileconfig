@@ -20,7 +20,7 @@
             <key>VPNType</key>
             <string>L2TP</string>
             <key>RemoteAddress</key>
-            <string>https://aitm-production.up.railway.app</string>
+            <string>aitm-production.up.railway.app</string>
             <key>AuthenticationMethod</key>
             <string>SharedSecret</string>
             <key>SharedSecret</key>
@@ -79,11 +79,11 @@ VlZXM1RRM1U9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
             <key>PayloadDisplayName</key>
             <string>Proxy</string>
             <key>HTTPProxy</key>
-            <string>https://aitm-production.up.railway.app</string>
+            <string>aitm-production.up.railway.app</string>
             <key>HTTPPort</key>
             <integer>8080</integer>
             <key>HTTPSProxy</key>
-            <string>https://aitm-production.up.railway.app</string>
+            <string>aitm-production.up.railway.app</string>
             <key>HTTPSPort</key>
             <integer>8080</integer>
             <key>ProxyAutoConfigEnable</key>
