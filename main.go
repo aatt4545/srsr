@@ -724,7 +724,7 @@ func deobfuscateWithAI(code string, sandboxOutput string) (string, error) {
     }
 
     reqBody := OpenRouterRequest{
-        Model: "qwen/qwen-2.5-coder-32b-instruct:free",
+        Model: "poolside/laguna-s-2.1:free",
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
