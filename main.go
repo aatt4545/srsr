@@ -179,7 +179,7 @@ func fetchFromURL(url string) (string, error) {
 }
 
 func executeInSandbox(code string, language string) string {
-    ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
     defer cancel()
 
     tmpFile, err := os.CreateTemp("", "sandbox-*")
@@ -205,7 +205,7 @@ func executeInSandbox(code string, language string) string {
         }
 
     case "lua":
-        stub := `-- bit32完全実装
+        stub := `-- bit32
 local bit32 = bit32 or {}
 if not bit32.bxor then
     bit32.bxor = function(a, b)
@@ -243,7 +243,6 @@ end
 if not bit32.lshift then bit32.lshift = function(a, b) return math.floor(a * (2 ^ b)) end end
 if not bit32.rshift then bit32.rshift = function(a, b) return math.floor(a / (2 ^ b)) end end
 
--- サンドボックス環境
 local sandbox = {
     print = function(...)
         local args = {...}
@@ -257,37 +256,11 @@ local sandbox = {
     wait = function() return 0 end,
     spawn = function(f) if f then f() end end,
     delay = function(t, f) if f then f() end end,
-    game = {
-        GetService = function(self, service)
-            local services = {
-                Players = { LocalPlayer = { Name = "Player", UserId = 0 }, GetPlayers = function() return {} end },
-                Workspace = {}, ReplicatedStorage = {}, ServerScriptService = {},
-                UserInputService = {}, TweenService = {},
-                HttpService = { JSONEncode = function(_, d) return tostring(d) end, JSONDecode = function(_, d) return {} end },
-                RunService = {}, Lighting = {}, SoundService = {},
-                StarterGui = {}, StarterPack = {}, Teams = {}
-            }
-            return services[service] or {}
-        end
-    },
-    workspace = {},
-    Players = { LocalPlayer = { Name = "Player", UserId = 0 }, GetPlayers = function() return {} end },
-    LocalPlayer = { Name = "Player", UserId = 0 },
     bit32 = bit32,
     stringChar = string.char,
     stringByte = string.byte
 }
 setmetatable(sandbox, { __index = _G })
-
--- loadstringをフックして復元コードをキャプチャ
-local originalLoadstring = loadstring
-sandbox.loadstring = function(code)
-    io.write("[DECOMPILED_CODE_START]\n")
-    io.write(code)
-    io.write("\n[DECOMPILED_CODE_END]\n")
-    return originalLoadstring(code)
-end
-sandbox.load = sandbox.loadstring
 
 local chunk = assert(loadstring(code))
 setfenv(chunk, sandbox)
@@ -364,98 +337,8 @@ chunk()
             return ""
         }
 
-    case "c":
-        outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
-        defer os.Remove(outputFile)
-        if err := exec.CommandContext(ctx, "gcc", tmpFile.Name(), "-o", outputFile).Run(); err != nil {
-            return ""
-        }
-        cmd := exec.CommandContext(ctx, outputFile)
-        cmd.Stdout = &stdout
-        cmd.Stderr = &stderr
-        if err := cmd.Run(); err != nil {
-            return ""
-        }
-
-    case "cpp":
-        outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
-        defer os.Remove(outputFile)
-        if err := exec.CommandContext(ctx, "g++", tmpFile.Name(), "-o", outputFile).Run(); err != nil {
-            return ""
-        }
-        cmd := exec.CommandContext(ctx, outputFile)
-        cmd.Stdout = &stdout
-        cmd.Stderr = &stderr
-        if err := cmd.Run(); err != nil {
-            return ""
-        }
-
-    case "csharp":
-        outputDir := strings.TrimSuffix(tmpFile.Name(), ".tmp")
-        os.MkdirAll(outputDir, 0755)
-        defer os.RemoveAll(outputDir)
-        cmd := exec.CommandContext(ctx, "dotnet", "run", "--project", outputDir)
-        cmd.Stdout = &stdout
-        cmd.Stderr = &stderr
-        if err := cmd.Run(); err != nil {
-            return ""
-        }
-
-    case "java":
-        cmd := exec.CommandContext(ctx, "java", tmpFile.Name())
-        cmd.Stdout = &stdout
-        cmd.Stderr = &stderr
-        if err := cmd.Run(); err != nil {
-            return ""
-        }
-
-    case "kotlin":
-        cmd := exec.CommandContext(ctx, "kotlinc", "-script", tmpFile.Name())
-        cmd.Stdout = &stdout
-        cmd.Stderr = &stderr
-        if err := cmd.Run(); err != nil {
-            return ""
-        }
-
-    case "go":
-        cmd := exec.CommandContext(ctx, "go", "run", tmpFile.Name())
-        cmd.Stdout = &stdout
-        cmd.Stderr = &stderr
-        if err := cmd.Run(); err != nil {
-            return ""
-        }
-
-    case "rust":
-        outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
-        defer os.Remove(outputFile)
-        if err := exec.CommandContext(ctx, "rustc", tmpFile.Name(), "-o", outputFile).Run(); err != nil {
-            return ""
-        }
-        cmd := exec.CommandContext(ctx, outputFile)
-        cmd.Stdout = &stdout
-        cmd.Stderr = &stderr
-        if err := cmd.Run(); err != nil {
-            return ""
-        }
-
     case "shell":
         cmd := exec.CommandContext(ctx, "bash", tmpFile.Name())
-        cmd.Stdout = &stdout
-        cmd.Stderr = &stderr
-        if err := cmd.Run(); err != nil {
-            return ""
-        }
-
-    case "powershell":
-        cmd := exec.CommandContext(ctx, "pwsh", "-File", tmpFile.Name())
-        cmd.Stdout = &stdout
-        cmd.Stderr = &stderr
-        if err := cmd.Run(); err != nil {
-            return ""
-        }
-
-    case "sql":
-        cmd := exec.CommandContext(ctx, "sqlite3", ":memory:", ".read", tmpFile.Name())
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
@@ -660,7 +543,7 @@ func deobfuscateWithAI(code string, sandboxOutput string) (string, error) {
     }
 
     reqBody := OpenRouterRequest{
-        Model: "poolside/laguna-s-2.1:free",
+        Model: "nvidia/nemotron-3.5-lightning:free",
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
@@ -726,23 +609,8 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
     }
 
     sandboxOutput := ""
-    if detectedLang != "" && detectedLang != "unknown" && detectedLang != "html" && detectedLang != "json" && detectedLang != "xml" {
+    if detectedLang == "javascript" || detectedLang == "typescript" || detectedLang == "lua" || detectedLang == "python" || detectedLang == "php" || detectedLang == "ruby" || detectedLang == "perl" || detectedLang == "shell" {
         sandboxOutput = executeInSandbox(response.OriginalCode, detectedLang)
-        
-        // 復元されたコードを抽出
-        if strings.Contains(sandboxOutput, "[DECOMPILED_CODE_START]") {
-            parts := strings.Split(sandboxOutput, "[DECOMPILED_CODE_START]")
-            if len(parts) > 1 {
-                codeParts := strings.Split(parts[1], "[DECOMPILED_CODE_END]")
-                if len(codeParts) > 1 {
-                    decompiledCode := strings.TrimSpace(codeParts[0])
-                    if decompiledCode != "" && decompiledCode != response.OriginalCode {
-                        response.OriginalCode = decompiledCode
-                        response.TransformationsApplied = append(response.TransformationsApplied, "vm_decompiled")
-                    }
-                }
-            }
-        }
     }
 
     if os.Getenv("OPENROUTER_API_KEY") != "" {
