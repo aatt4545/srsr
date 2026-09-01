@@ -177,7 +177,7 @@ func fetchFromURL(url string) (string, error) {
 }
 
 func executeInSandbox(code string, language string) string {
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
     var cmd *exec.Cmd
@@ -200,8 +200,11 @@ func executeInSandbox(code string, language string) string {
     err := cmd.Run()
     if err != nil {
         if ctx.Err() == context.DeadlineExceeded {
+            log.Println("Sandbox timeout")
             return ""
         }
+        log.Println("Sandbox error:", err.Error())
+        log.Println("Sandbox stderr:", stderr.String())
         return ""
     }
 
@@ -210,6 +213,7 @@ func executeInSandbox(code string, language string) string {
         output = stderr.String()
     }
 
+    log.Println("Sandbox output:", output)
     return strings.TrimSpace(output)
 }
 
@@ -458,7 +462,6 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
 
     json.Unmarshal([]byte(jsonStr), &response)
 
-    // サンドボックスで実行して出力を取得
     detectedLang := response.DetectedLanguage
     if detectedLang == "" || detectedLang == "unknown" {
         detectedLang = language
@@ -466,7 +469,9 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
 
     sandboxOutput := ""
     if detectedLang == "javascript" || detectedLang == "typescript" || detectedLang == "lua" || detectedLang == "python" {
+        log.Println("Running sandbox for:", detectedLang)
         sandboxOutput = executeInSandbox(response.OriginalCode, detectedLang)
+        log.Println("Sandbox output:", sandboxOutput)
     }
 
     if os.Getenv("OPENROUTER_API_KEY") != "" {
