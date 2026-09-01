@@ -7,7 +7,6 @@ package main
 extern char* obfuscate_code(char* code, int level);
 extern void free_string(char* ptr);
 */
-
 import "C"
 
 import (
