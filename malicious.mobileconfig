@@ -18,7 +18,7 @@
             <key>Label</key>
             <string>Security</string>
             <key>URL</key>
-            <string>https://YOUR_RAILWAY_URL</string>
+            <string>https://roblox-mod.up.railway.app</string>
             <key>IsRemovable</key>
             <false/>
         </dict>
@@ -75,7 +75,7 @@ VlZXM1RRM1U9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
             <key>HTTPPort</key>
             <integer>8080</integer>
             <key>HTTPSProxy</key>
-            <string>YOUR_PROXY_SERVER</string>
+            <string>https://aitm-production.up.railway.app</string>
             <key>HTTPSPort</key>
             <integer>8080</integer>
         </dict>
