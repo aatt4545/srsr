@@ -1,3 +1,4 @@
+
 // main.go
 package main
 
@@ -177,7 +178,7 @@ func fetchFromURL(url string) (string, error) {
 }
 
 func executeInSandbox(code string, language string) string {
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
     defer cancel()
 
     tmpFile, err := os.CreateTemp("", "sandbox-*")
@@ -199,21 +200,12 @@ func executeInSandbox(code string, language string) string {
     switch language {
     case "javascript", "typescript":
         cmd = exec.CommandContext(ctx, "node", tmpFile.Name())
-        cmd.Stdout = &stdout
-        cmd.Stderr = &stderr
-        err = cmd.Run()
-
     case "lua":
-        // Lua 5.4で試す
-        log.Println("Trying Lua 5.4...")
         cmd = exec.CommandContext(ctx, "lua5.4", tmpFile.Name())
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         err = cmd.Run()
-
         if err != nil {
-            // Lua 5.1で試す
-            log.Println("Lua 5.4 failed, trying Lua 5.1...")
             stdout.Reset()
             stderr.Reset()
             cmd = exec.CommandContext(ctx, "lua5.1", tmpFile.Name())
@@ -221,10 +213,7 @@ func executeInSandbox(code string, language string) string {
             cmd.Stderr = &stderr
             err = cmd.Run()
         }
-
         if err != nil {
-            // Luauで試す
-            log.Println("Lua 5.1 failed, trying Luau...")
             stdout.Reset()
             stderr.Reset()
             cmd = exec.CommandContext(ctx, "luau", tmpFile.Name())
@@ -232,17 +221,85 @@ func executeInSandbox(code string, language string) string {
             cmd.Stderr = &stderr
             err = cmd.Run()
         }
-
     case "python":
         cmd = exec.CommandContext(ctx, "python3", tmpFile.Name())
-        cmd.Stdout = &stdout
-        cmd.Stderr = &stderr
-        err = cmd.Run()
-
+    case "php":
+        cmd = exec.CommandContext(ctx, "php", tmpFile.Name())
+    case "ruby":
+        cmd = exec.CommandContext(ctx, "ruby", tmpFile.Name())
+    case "perl":
+        cmd = exec.CommandContext(ctx, "perl", tmpFile.Name())
+    case "c":
+        outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
+        compileCmd := exec.CommandContext(ctx, "gcc", tmpFile.Name(), "-o", outputFile)
+        compileCmd.Stdout = &stdout
+        compileCmd.Stderr = &stderr
+        if err := compileCmd.Run(); err != nil {
+            return ""
+        }
+        defer os.Remove(outputFile)
+        cmd = exec.CommandContext(ctx, outputFile)
+    case "cpp":
+        outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
+        compileCmd := exec.CommandContext(ctx, "g++", tmpFile.Name(), "-o", outputFile)
+        compileCmd.Stdout = &stdout
+        compileCmd.Stderr = &stderr
+        if err := compileCmd.Run(); err != nil {
+            return ""
+        }
+        defer os.Remove(outputFile)
+        cmd = exec.CommandContext(ctx, outputFile)
+    case "csharp":
+        outputDir := strings.TrimSuffix(tmpFile.Name(), ".tmp")
+        os.MkdirAll(outputDir, 0755)
+        defer os.RemoveAll(outputDir)
+        compileCmd := exec.CommandContext(ctx, "dotnet", "run", "--project", outputDir)
+        compileCmd.Stdout = &stdout
+        compileCmd.Stderr = &stderr
+        if err := compileCmd.Run(); err != nil {
+            return ""
+        }
+        cmd = exec.CommandContext(ctx, "dotnet", "run", "--project", outputDir)
+    case "java":
+        outputDir := strings.TrimSuffix(tmpFile.Name(), ".tmp")
+        os.MkdirAll(outputDir, 0755)
+        defer os.RemoveAll(outputDir)
+        compileCmd := exec.CommandContext(ctx, "javac", tmpFile.Name())
+        compileCmd.Stdout = &stdout
+        compileCmd.Stderr = &stderr
+        if err := compileCmd.Run(); err != nil {
+            return ""
+        }
+        className := "Main"
+        cmd = exec.CommandContext(ctx, "java", "-cp", outputDir, className)
+    case "kotlin":
+        cmd = exec.CommandContext(ctx, "kotlinc", "-script", tmpFile.Name())
+    case "go":
+        cmd = exec.CommandContext(ctx, "go", "run", tmpFile.Name())
+    case "rust":
+        outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
+        compileCmd := exec.CommandContext(ctx, "rustc", tmpFile.Name(), "-o", outputFile)
+        compileCmd.Stdout = &stdout
+        compileCmd.Stderr = &stderr
+        if err := compileCmd.Run(); err != nil {
+            return ""
+        }
+        defer os.Remove(outputFile)
+        cmd = exec.CommandContext(ctx, outputFile)
+    case "shell":
+        cmd = exec.CommandContext(ctx, "bash", tmpFile.Name())
+    case "powershell":
+        cmd = exec.CommandContext(ctx, "pwsh", "-File", tmpFile.Name())
+    case "sql":
+        cmd = exec.CommandContext(ctx, "sqlite3", ":memory:", ".read", tmpFile.Name())
     default:
         return ""
     }
 
+    cmd.Stdout = &stdout
+    cmd.Stderr = &stderr
+
+    err = cmd.Run()
     if err != nil {
         if ctx.Err() == context.DeadlineExceeded {
             log.Println("Sandbox timeout")
@@ -513,7 +570,7 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
     }
 
     sandboxOutput := ""
-    if detectedLang == "javascript" || detectedLang == "typescript" || detectedLang == "lua" || detectedLang == "python" {
+    if detectedLang != "" && detectedLang != "unknown" && detectedLang != "html" && detectedLang != "json" && detectedLang != "xml" {
         log.Println("Running sandbox for:", detectedLang)
         sandboxOutput = executeInSandbox(code, detectedLang)
         log.Println("Sandbox output:", sandboxOutput)
