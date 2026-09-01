@@ -177,7 +177,7 @@ func fetchFromURL(url string) (string, error) {
 }
 
 func executeInSandbox(code string, language string) string {
-    ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+    ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
     defer cancel()
 
     tmpFile, err := os.CreateTemp("", "sandbox-*")
@@ -206,83 +206,29 @@ func executeInSandbox(code string, language string) string {
         }
 
     case "lua":
-        // Roblox APIスタブ（_Gメタテーブル方式）
-        stub := `setmetatable(_G, {
-    __index = function(t, k)
-        if k == "game" then
-            local gameStub = {}
-            gameStub.__index = gameStub
-            setmetatable(gameStub, {
-                __index = function(_, service)
-                    local services = {
-                        Players = {
-                            LocalPlayer = { Name = "Player", UserId = 0 },
-                            GetPlayers = function() return {} end
-                        },
-                        Workspace = {},
-                        ReplicatedStorage = {},
-                        ServerScriptService = {},
-                        UserInputService = {},
-                        TweenService = {},
-                        HttpService = {
-                            JSONEncode = function(_, data) return tostring(data) end,
-                            JSONDecode = function(_, data) return {} end
-                        },
-                        RunService = {},
-                        Lighting = {},
-                        SoundService = {},
-                        StarterGui = {},
-                        StarterPack = {},
-                        Teams = {}
-                    }
-                    return services[service] or {}
-                end
-            })
-            gameStub.GetService = function(self, service)
-                local services = {
-                    Players = {
-                        LocalPlayer = { Name = "Player", UserId = 0 },
-                        GetPlayers = function() return {} end
-                    },
-                    Workspace = {},
-                    ReplicatedStorage = {},
-                    ServerScriptService = {},
-                    UserInputService = {},
-                    TweenService = {},
-                    HttpService = {
-                        JSONEncode = function(_, data) return tostring(data) end,
-                        JSONDecode = function(_, data) return {} end
-                    },
-                    RunService = {},
-                    Lighting = {},
-                    SoundService = {},
-                    StarterGui = {},
-                    StarterPack = {},
-                    Teams = {}
-                }
-                return services[service] or {}
+        // MoonVeil対応スタブ
+        stub := `local getfenv = getfenv or function() return _G end
+local bit32 = bit32 or {}
+if not bit32.bxor then
+    bit32.bxor = function(a, b)
+        local result = 0
+        local bitval = 1
+        while a > 0 or b > 0 do
+            local abit = a % 2
+            local bbit = b % 2
+            if abit ~= bbit then
+                result = result + bitval
             end
-            return gameStub
+            a = math.floor(a / 2)
+            b = math.floor(b / 2)
+            bitval = bitval * 2
         end
-        if k == "workspace" then return {} end
-        if k == "Players" then
-            return {
-                LocalPlayer = { Name = "Player", UserId = 0 },
-                GetPlayers = function() return {} end
-            }
-        end
-        if k == "LocalPlayer" then return { Name = "Player", UserId = 0 } end
-        if k == "print" then return function(...) local args = {...} for i, v in ipairs(args) do io.write(tostring(v)) if i < #args then io.write(" ") end end io.write("\n") end end
-        if k == "warn" then return function(...) end end
-        if k == "wait" then return function() return 0 end end
-        if k == "spawn" then return function(f) if f then f() end end end
-        if k == "delay" then return function(t, f) if f then f() end end end
-        return nil
+        return result
     end
-})
+end
 
-_G.game = setmetatable({}, {
-    __index = function(_, service)
+_G.game = {
+    GetService = function(self, service)
         local services = {
             Players = {
                 LocalPlayer = { Name = "Player", UserId = 0 },
@@ -306,39 +252,7 @@ _G.game = setmetatable({}, {
         }
         return services[service] or {}
     end
-})
-
-_G.game.GetService = function(self, service)
-    local services = {
-        Players = {
-            LocalPlayer = { Name = "Player", UserId = 0 },
-            GetPlayers = function() return {} end
-        },
-        Workspace = {},
-        ReplicatedStorage = {},
-        ServerScriptService = {},
-        UserInputService = {},
-        TweenService = {},
-        HttpService = {
-            JSONEncode = function(_, data) return tostring(data) end,
-            JSONDecode = function(_, data) return {} end
-        },
-        RunService = {},
-        Lighting = {},
-        SoundService = {},
-        StarterGui = {},
-        StarterPack = {},
-        Teams = {}
-    }
-    return services[service] or {}
-end
-
-_G.workspace = {}
-_G.Players = {
-    LocalPlayer = { Name = "Player", UserId = 0 },
-    GetPlayers = function() return {} end
 }
-_G.LocalPlayer = { Name = "Player", UserId = 0 }
 
 `
 
@@ -355,23 +269,26 @@ _G.LocalPlayer = { Name = "Player", UserId = 0 }
         }
         stubFile.Close()
 
-        cmd54 := exec.CommandContext(ctx, "lua5.4", stubFile.Name())
-        cmd54.Stdout = &stdout
-        cmd54.Stderr = &stderr
-        err = cmd54.Run()
+        // Lua 5.1で試す（MoonVeilはLua 5.1互換）
+        cmd51 := exec.CommandContext(ctx, "lua5.1", stubFile.Name())
+        cmd51.Stdout = &stdout
+        cmd51.Stderr = &stderr
+        err = cmd51.Run()
 
         if err != nil {
-            log.Println("Lua 5.4 failed, trying Lua 5.1...")
+            // Lua 5.4で試す
+            log.Println("Lua 5.1 failed, trying Lua 5.4...")
             stdout.Reset()
             stderr.Reset()
-            cmd51 := exec.CommandContext(ctx, "lua5.1", stubFile.Name())
-            cmd51.Stdout = &stdout
-            cmd51.Stderr = &stderr
-            err = cmd51.Run()
+            cmd54 := exec.CommandContext(ctx, "lua5.4", stubFile.Name())
+            cmd54.Stdout = &stdout
+            cmd54.Stderr = &stderr
+            err = cmd54.Run()
         }
 
         if err != nil {
-            log.Println("Lua 5.1 failed, trying Luau...")
+            // Luauで試す
+            log.Println("Lua 5.4 failed, trying Luau...")
             stdout.Reset()
             stderr.Reset()
             cmdLuau := exec.CommandContext(ctx, "luau", stubFile.Name())
@@ -736,7 +653,7 @@ func deobfuscateWithAI(code string, sandboxOutput string) (string, error) {
     }
 
     reqBody := OpenRouterRequest{
-        Model: "poolside/laguna-s-2.1:free",
+        Model: "nvidia/nemotron-3.5-lightning:free",
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
