@@ -194,23 +194,55 @@ func executeInSandbox(code string, language string) string {
     tmpFile.Close()
 
     var cmd *exec.Cmd
+    var stdout, stderr bytes.Buffer
 
     switch language {
     case "javascript", "typescript":
         cmd = exec.CommandContext(ctx, "node", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        err = cmd.Run()
+
     case "lua":
+        // Lua 5.4で試す
+        log.Println("Trying Lua 5.4...")
         cmd = exec.CommandContext(ctx, "lua5.4", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        err = cmd.Run()
+
+        if err != nil {
+            // Lua 5.1で試す
+            log.Println("Lua 5.4 failed, trying Lua 5.1...")
+            stdout.Reset()
+            stderr.Reset()
+            cmd = exec.CommandContext(ctx, "lua5.1", tmpFile.Name())
+            cmd.Stdout = &stdout
+            cmd.Stderr = &stderr
+            err = cmd.Run()
+        }
+
+        if err != nil {
+            // Luauで試す
+            log.Println("Lua 5.1 failed, trying Luau...")
+            stdout.Reset()
+            stderr.Reset()
+            cmd = exec.CommandContext(ctx, "luau", tmpFile.Name())
+            cmd.Stdout = &stdout
+            cmd.Stderr = &stderr
+            err = cmd.Run()
+        }
+
     case "python":
         cmd = exec.CommandContext(ctx, "python3", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        err = cmd.Run()
+
     default:
         return ""
     }
 
-    var stdout, stderr bytes.Buffer
-    cmd.Stdout = &stdout
-    cmd.Stderr = &stderr
-
-    err = cmd.Run()
     if err != nil {
         if ctx.Err() == context.DeadlineExceeded {
             log.Println("Sandbox timeout")
@@ -480,7 +512,6 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
         detectedLang = language
     }
 
-    // サンドボックスには元のコードを渡す
     sandboxOutput := ""
     if detectedLang == "javascript" || detectedLang == "typescript" || detectedLang == "lua" || detectedLang == "python" {
         log.Println("Running sandbox for:", detectedLang)
@@ -488,7 +519,6 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
         log.Println("Sandbox output:", sandboxOutput)
     }
 
-    // AIにはRustの解読結果とサンドボックス出力を渡す
     if os.Getenv("OPENROUTER_API_KEY") != "" {
         aiResult, err := deobfuscateWithAI(response.OriginalCode, sandboxOutput)
         if err == nil && aiResult != "" && aiResult != code {
