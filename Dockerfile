@@ -46,35 +46,29 @@ RUN apt-get update && apt-get install -y \
     bash \
     && rm -rf /var/lib/apt/lists/*
 
-# Luauをビルド
 RUN git clone https://github.com/luau-lang/luau /tmp/luau && \
     cd /tmp/luau && \
     make luau && \
     cp luau /usr/local/bin/luau && \
     rm -rf /tmp/luau
 
-# Goをインストール
 RUN curl -fsSL https://go.dev/dl/go1.21.0.linux-amd64.tar.gz | tar -xz -C /usr/local
 ENV PATH="/usr/local/go/bin:${PATH}"
 
-# Rustをインストール
 RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# PowerShellをインストール
 RUN curl -fsSL https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb -o /tmp/packages-microsoft-prod.deb && \
     dpkg -i /tmp/packages-microsoft-prod.deb && \
     apt-get update && \
     apt-get install -y powershell && \
     rm -rf /var/lib/apt/lists/* /tmp/packages-microsoft-prod.deb
 
-# Kotlinをインストール
 RUN curl -fsSL https://github.com/JetBrains/kotlin/releases/download/v1.9.0/kotlin-compiler-1.9.0.zip -o /tmp/kotlin.zip && \
     unzip /tmp/kotlin.zip -d /usr/local/kotlin && \
     rm /tmp/kotlin.zip
 ENV PATH="/usr/local/kotlin/kotlinc/bin:${PATH}"
 
-# .NET SDKをインストール
 RUN curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- -c 8.0 --install-dir /usr/local/dotnet
 ENV PATH="/usr/local/dotnet:${PATH}"
 
