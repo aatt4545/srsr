@@ -1,4 +1,3 @@
-
 # Dockerfile
 FROM rust:1.75 AS rust-builder
 
@@ -28,6 +27,7 @@ RUN apt-get update && apt-get install -y \
     cmake \
     curl \
     wget \
+    unzip \
     nodejs \
     npm \
     lua5.4 \
@@ -74,8 +74,7 @@ RUN curl -fsSL https://github.com/JetBrains/kotlin/releases/download/v1.9.0/kotl
     rm /tmp/kotlin.zip
 ENV PATH="/usr/local/kotlin/kotlinc/bin:${PATH}"
 
-# SwiftはLinuxでは制限があるためスキップ
-# C# (.NET)をインストール
+# .NET SDKをインストール
 RUN curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- -c 8.0 --install-dir /usr/local/dotnet
 ENV PATH="/usr/local/dotnet:${PATH}"
 
