@@ -177,7 +177,7 @@ func fetchFromURL(url string) (string, error) {
 }
 
 func executeInSandbox(code string, language string) string {
-    ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
     defer cancel()
 
     tmpFile, err := os.CreateTemp("", "sandbox-*")
@@ -206,13 +206,15 @@ func executeInSandbox(code string, language string) string {
         }
 
     case "lua":
-        // MoonVeil対応スタブ
-        stub := `local getfenv = getfenv or function() return _G end
+        // MoonVeil完全対応スタブ
+        stub := `local getfenv = getfenv or function(f) if f == 0 or f == nil then return _G end return f end
 local bit32 = bit32 or {}
 if not bit32.bxor then
     bit32.bxor = function(a, b)
         local result = 0
         local bitval = 1
+        a = a or 0
+        b = b or 0
         while a > 0 or b > 0 do
             local abit = a % 2
             local bbit = b % 2
@@ -226,6 +228,56 @@ if not bit32.bxor then
         return result
     end
 end
+if not bit32.band then
+    bit32.band = function(a, b)
+        local result = 0
+        local bitval = 1
+        a = a or 0
+        b = b or 0
+        while a > 0 and b > 0 do
+            if a % 2 == 1 and b % 2 == 1 then
+                result = result + bitval
+            end
+            a = math.floor(a / 2)
+            b = math.floor(b / 2)
+            bitval = bitval * 2
+        end
+        return result
+    end
+end
+if not bit32.bor then
+    bit32.bor = function(a, b)
+        local result = 0
+        local bitval = 1
+        a = a or 0
+        b = b or 0
+        while a > 0 or b > 0 do
+            if a % 2 == 1 or b % 2 == 1 then
+                result = result + bitval
+            end
+            a = math.floor(a / 2)
+            b = math.floor(b / 2)
+            bitval = bitval * 2
+        end
+        return result
+    end
+end
+if not bit32.lshift then
+    bit32.lshift = function(a, b)
+        return math.floor(a * (2 ^ b))
+    end
+end
+if not bit32.rshift then
+    bit32.rshift = function(a, b)
+        return math.floor(a / (2 ^ b))
+    end
+end
+
+local stringChar = string.char
+local stringByte = string.byte
+
+_G.stringChar = stringChar
+_G.stringByte = stringByte
 
 _G.game = {
     GetService = function(self, service)
@@ -254,6 +306,25 @@ _G.game = {
     end
 }
 
+_G.workspace = {}
+_G.Players = {
+    LocalPlayer = { Name = "Player", UserId = 0 },
+    GetPlayers = function() return {} end
+}
+_G.LocalPlayer = { Name = "Player", UserId = 0 }
+_G.print = function(...) 
+    local args = {...} 
+    for i, v in ipairs(args) do 
+        io.write(tostring(v)) 
+        if i < #args then io.write(" ") end 
+    end 
+    io.write("\n") 
+end
+_G.warn = function(...) end
+_G.wait = function() return 0 end
+_G.spawn = function(f) if f then f() end end
+_G.delay = function(t, f) if f then f() end end
+
 `
 
         stubFile, err := os.CreateTemp("", "sandbox-lua-*")
@@ -269,7 +340,7 @@ _G.game = {
         }
         stubFile.Close()
 
-        // Lua 5.1で試す（MoonVeilはLua 5.1互換）
+        // Lua 5.1で試す
         cmd51 := exec.CommandContext(ctx, "lua5.1", stubFile.Name())
         cmd51.Stdout = &stdout
         cmd51.Stderr = &stderr
@@ -653,7 +724,7 @@ func deobfuscateWithAI(code string, sandboxOutput string) (string, error) {
     }
 
     reqBody := OpenRouterRequest{
-        Model: "poolside/laguna-s-2.1:free",
+        Model: "nvidia/nemotron-3.5-lightning:free",
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
