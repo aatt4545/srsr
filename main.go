@@ -252,7 +252,7 @@ func handleRawCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
             result.ObfuscationType, result.DetectedLanguage, result.Confidence*100, result.ExecutionTimeMS),
         Files: []*discordgo.File{
             {
-                Name:   "deobfuscated.zip",
+                Name:   "output.txt",
                 Reader: bytes.NewReader(zipData),
             },
         },
@@ -304,7 +304,7 @@ func handleDeobfuscateCommand(s *discordgo.Session, m *discordgo.MessageCreate) 
             result.ObfuscationType, result.DetectedLanguage, result.Confidence*100, result.ExecutionTimeMS),
         Files: []*discordgo.File{
             {
-                Name:   "deobfuscated.zip",
+                Name:   "output.txt",
                 Reader: bytes.NewReader(zipData),
             },
         },
