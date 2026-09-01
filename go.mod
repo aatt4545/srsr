@@ -1,5 +1,5 @@
 // go.mod
-module deobfuscator-server
+module code-toolkit
 
 go 1.21
 
