@@ -1,3 +1,4 @@
+# Dockerfile
 FROM rust:1.75 AS rust-builder
 
 WORKDIR /app
@@ -16,6 +17,8 @@ RUN go mod download
 RUN go build -o server
 
 FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=go-builder /app/server .
