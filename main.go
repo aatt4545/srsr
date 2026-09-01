@@ -84,7 +84,7 @@ func generateCodeWithAI(description string) (string, error) {
     }
 
     reqBody := OpenRouterRequest{
-        Model: "anthropic/claude-opuS-5:free",
+        Model: "qwen/qwen-2.5-coder-32b-instruct:free",
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
