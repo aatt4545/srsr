@@ -724,7 +724,7 @@ func deobfuscateWithAI(code string, sandboxOutput string) (string, error) {
     }
 
     reqBody := OpenRouterRequest{
-        Model: "poolside/laguna-s-2.1:free",
+        Model: "nvidia/nemotron-3.5-lightning:free",
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
