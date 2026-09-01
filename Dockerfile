@@ -1,6 +1,4 @@
-# Dockerfile
-FROM rust:latest AS rust-builder
-
+FROM rust:1.85 AS rust-builder
 WORKDIR /app
 COPY Ransomware/ .
 RUN rustup target add x86_64-pc-windows-gnu
