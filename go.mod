@@ -1,3 +1,4 @@
+// go.mod
 module deobfuscator-server
 
 go 1.21
