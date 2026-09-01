@@ -1,3 +1,4 @@
+// main.go
 package main
 
 /*
@@ -10,12 +11,14 @@ import "C"
 
 import (
     "bytes"
+    "context"
     "encoding/json"
     "fmt"
     "io"
     "log"
     "net/http"
     "os"
+    "os/exec"
     "os/signal"
     "strings"
     "syscall"
@@ -171,6 +174,43 @@ func fetchFromURL(url string) (string, error) {
     }
 
     return string(content), nil
+}
+
+func executeInSandbox(code string, language string) string {
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+
+    var cmd *exec.Cmd
+
+    switch language {
+    case "javascript", "typescript":
+        cmd = exec.CommandContext(ctx, "node", "-e", code)
+    case "lua":
+        cmd = exec.CommandContext(ctx, "lua5.4", "-e", code)
+    case "python":
+        cmd = exec.CommandContext(ctx, "python3", "-c", code)
+    default:
+        return ""
+    }
+
+    var stdout, stderr bytes.Buffer
+    cmd.Stdout = &stdout
+    cmd.Stderr = &stderr
+
+    err := cmd.Run()
+    if err != nil {
+        if ctx.Err() == context.DeadlineExceeded {
+            return ""
+        }
+        return ""
+    }
+
+    output := stdout.String()
+    if output == "" {
+        output = stderr.String()
+    }
+
+    return strings.TrimSpace(output)
 }
 
 func startDiscordBot() {
@@ -348,10 +388,15 @@ func extractCodeFromAI(aiOutput string) string {
     return strings.TrimSpace(aiOutput)
 }
 
-func deobfuscateWithAI(code string) (string, error) {
+func deobfuscateWithAI(code string, sandboxOutput string) (string, error) {
     apiKey := os.Getenv("OPENROUTER_API_KEY")
     if apiKey == "" {
         return "", fmt.Errorf("OPENROUTER_API_KEY not set")
+    }
+
+    hintText := ""
+    if sandboxOutput != "" {
+        hintText = fmt.Sprintf("\n\nSandbox execution output:\n%s", sandboxOutput)
     }
 
     reqBody := OpenRouterRequest{
@@ -359,11 +404,11 @@ func deobfuscateWithAI(code string) (string, error) {
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
-                Content: "You are a code deobfuscator. Return ONLY the deobfuscated code. No explanations. No markdown. No introduction. No conclusion. Just the raw code.",
+                Content: "You are a code deobfuscator. Return ONLY the deobfuscated code. No explanations. No markdown. Just the raw code. Use the sandbox output as a hint to understand what the code does.",
             },
             {
                 Role: "user",
-                Content: fmt.Sprintf("Deobfuscate this code:\n\n%s", code),
+                Content: fmt.Sprintf("Deobfuscate this code:%s\n\nCode:\n%s", hintText, code),
             },
         },
         Temperature: 0.0,
@@ -413,8 +458,19 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
 
     json.Unmarshal([]byte(jsonStr), &response)
 
+    // サンドボックスで実行して出力を取得
+    detectedLang := response.DetectedLanguage
+    if detectedLang == "" || detectedLang == "unknown" {
+        detectedLang = language
+    }
+
+    sandboxOutput := ""
+    if detectedLang == "javascript" || detectedLang == "typescript" || detectedLang == "lua" || detectedLang == "python" {
+        sandboxOutput = executeInSandbox(response.OriginalCode, detectedLang)
+    }
+
     if os.Getenv("OPENROUTER_API_KEY") != "" {
-        aiResult, err := deobfuscateWithAI(response.OriginalCode)
+        aiResult, err := deobfuscateWithAI(response.OriginalCode, sandboxOutput)
         if err == nil && aiResult != "" && aiResult != code {
             response.OriginalCode = aiResult
             response.TransformationsApplied = append(response.TransformationsApplied, "ai_deobfuscate")
