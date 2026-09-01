@@ -359,27 +359,11 @@ func deobfuscateWithAI(code string) (string, error) {
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
-                Content: "You are a universal code deobfuscator. Decode ALL types of obfuscation: base64, hex, unicode, binary, shellcode, XOR, ROT13, string arrays, control flow flattening, and any other encoding. For binary/shellcode, decode to readable code or explain what it does. Return ONLY the decoded result without explanations.",
+                Content: "You are a code deobfuscator. Return ONLY the deobfuscated code. No explanations. No markdown. No introduction. No conclusion. Just the raw code.",
             },
             {
                 Role: "user",
-                Content: "\\x48\\x65\\x6c\\x6c\\x6f",
-            },
-            {
-                Role: "assistant",
-                Content: "Hello",
-            },
-            {
-                Role: "user",
-                Content: "var _0x1 = ['console', 'log']; var a = _0x1[0]; var b = _0x1[1]; window[a][b]('Hello World'); var dummy = 123;",
-            },
-            {
-                Role: "assistant",
-                Content: "console.log(\"Hello World\");",
-            },
-            {
-                Role: "user",
-                Content: fmt.Sprintf("Decode this:\n\n%s", code),
+                Content: fmt.Sprintf("Deobfuscate this code:\n\n%s", code),
             },
         },
         Temperature: 0.0,
