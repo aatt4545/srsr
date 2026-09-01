@@ -251,9 +251,9 @@ func handleRawCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 func handleDeobfuscateCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
-    var code string
-    var language string
-    var obfuscationType string
+    code := ""
+    language := ""
+    obfuscationType := ""
 
     if len(m.Attachments) > 0 {
         attachment := m.Attachments[0]
@@ -414,6 +414,8 @@ func deobfuscateWithAI(code string) (string, error) {
 }
 
 func deobfuscateCode(code string, language string, obfuscationType string) DeobfuscateResponse {
+    response := DeobfuscateResponse{}
+
     cCode := C.CString(code)
     cLang := C.CString(language)
 
@@ -425,7 +427,6 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
 
     jsonStr := C.GoString(result)
 
-    var response DeobfuscateResponse
     json.Unmarshal([]byte(jsonStr), &response)
 
     if os.Getenv("OPENROUTER_API_KEY") != "" {
