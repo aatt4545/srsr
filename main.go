@@ -19,6 +19,7 @@ import (
     "os/signal"
     "strings"
     "syscall"
+    "time"
     "unsafe"
 
     "github.com/bwmarrin/discordgo"
