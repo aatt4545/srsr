@@ -84,7 +84,7 @@ func generateCodeWithAI(description string) (string, error) {
     }
 
     reqBody := OpenRouterRequest{
-        Model: "poolside/laguna-s-2.1:free",
+        Model: "anthropic/claude-opuS-5",
         Messages: []OpenRouterMessage{
             {
                 Role: "system",
@@ -95,8 +95,8 @@ func generateCodeWithAI(description string) (string, error) {
                 Content: description,
             },
         },
-        Temperature: 0.3,
-        MaxTokens:   4000,
+        Temperature: 0.0,
+        MaxTokens:   1000,
     }
 
     return callOpenRouter(reqBody)
