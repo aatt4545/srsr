@@ -179,7 +179,7 @@ func fetchFromURL(url string) (string, error) {
 }
 
 func executeInSandbox(code string, language string) string {
-    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
     defer cancel()
 
     tmpFile, err := os.CreateTemp("", "sandbox-*")
@@ -205,8 +205,7 @@ func executeInSandbox(code string, language string) string {
         }
 
     case "lua":
-        stub := `-- bit32
-local bit32 = bit32 or {}
+        stub := `local bit32 = bit32 or {}
 if not bit32.bxor then
     bit32.bxor = function(a, b)
         local r, v = 0, 1
@@ -266,7 +265,6 @@ local chunk = assert(loadstring(code))
 setfenv(chunk, sandbox)
 chunk()
 `
-
         stubFile, err := os.CreateTemp("", "sandbox-lua-*")
         if err != nil {
             return ""
@@ -337,8 +335,107 @@ chunk()
             return ""
         }
 
+    case "c":
+        outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
+        defer os.Remove(outputFile)
+        if err := exec.CommandContext(ctx, "gcc", tmpFile.Name(), "-o", outputFile).Run(); err != nil {
+            return ""
+        }
+        cmd := exec.CommandContext(ctx, outputFile)
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            return ""
+        }
+
+    case "cpp":
+        outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
+        defer os.Remove(outputFile)
+        if err := exec.CommandContext(ctx, "g++", tmpFile.Name(), "-o", outputFile).Run(); err != nil {
+            return ""
+        }
+        cmd := exec.CommandContext(ctx, outputFile)
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            return ""
+        }
+
+    case "csharp":
+        outputDir := strings.TrimSuffix(tmpFile.Name(), ".tmp")
+        os.MkdirAll(outputDir, 0755)
+        defer os.RemoveAll(outputDir)
+        os.WriteFile(outputDir+"/Program.cs", []byte(code), 0644)
+        cmd := exec.CommandContext(ctx, "dotnet", "run", "--project", outputDir)
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            return ""
+        }
+
+    case "java":
+        outputDir := strings.TrimSuffix(tmpFile.Name(), ".tmp")
+        os.MkdirAll(outputDir, 0755)
+        defer os.RemoveAll(outputDir)
+        javaFile := outputDir + "/Main.java"
+        os.WriteFile(javaFile, []byte(code), 0644)
+        if err := exec.CommandContext(ctx, "javac", javaFile).Run(); err != nil {
+            return ""
+        }
+        cmd := exec.CommandContext(ctx, "java", "-cp", outputDir, "Main")
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            return ""
+        }
+
+    case "kotlin":
+        cmd := exec.CommandContext(ctx, "kotlinc", "-script", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            return ""
+        }
+
+    case "go":
+        cmd := exec.CommandContext(ctx, "go", "run", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            return ""
+        }
+
+    case "rust":
+        outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
+        defer os.Remove(outputFile)
+        if err := exec.CommandContext(ctx, "rustc", tmpFile.Name(), "-o", outputFile).Run(); err != nil {
+            return ""
+        }
+        cmd := exec.CommandContext(ctx, outputFile)
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            return ""
+        }
+
     case "shell":
         cmd := exec.CommandContext(ctx, "bash", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            return ""
+        }
+
+    case "powershell":
+        cmd := exec.CommandContext(ctx, "pwsh", "-File", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            return ""
+        }
+
+    case "sql":
+        cmd := exec.CommandContext(ctx, "sqlite3", ":memory:", ".read", tmpFile.Name())
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         if err := cmd.Run(); err != nil {
@@ -609,7 +706,7 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
     }
 
     sandboxOutput := ""
-    if detectedLang == "javascript" || detectedLang == "typescript" || detectedLang == "lua" || detectedLang == "python" || detectedLang == "php" || detectedLang == "ruby" || detectedLang == "perl" || detectedLang == "shell" {
+    if detectedLang != "" && detectedLang != "unknown" && detectedLang != "html" && detectedLang != "json" && detectedLang != "xml" {
         sandboxOutput = executeInSandbox(response.OriginalCode, detectedLang)
     }
 
