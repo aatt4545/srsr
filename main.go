@@ -1,4 +1,3 @@
-
 // main.go
 package main
 
@@ -194,119 +193,250 @@ func executeInSandbox(code string, language string) string {
     }
     tmpFile.Close()
 
-    var cmd *exec.Cmd
     var stdout, stderr bytes.Buffer
 
     switch language {
     case "javascript", "typescript":
-        cmd = exec.CommandContext(ctx, "node", tmpFile.Name())
-    case "lua":
-        cmd = exec.CommandContext(ctx, "lua5.4", tmpFile.Name())
+        cmd := exec.CommandContext(ctx, "node", tmpFile.Name())
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
-        err = cmd.Run()
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
+            return ""
+        }
+
+    case "lua":
+        // Roblox APIスタブを作成
+        stub := `local game = {
+    GetService = function(self, service)
+        local services = {
+            Players = {
+                LocalPlayer = { Name = "Player", UserId = 0 },
+                GetPlayers = function() return {} end
+            },
+            Workspace = {},
+            ReplicatedStorage = {},
+            ServerScriptService = {},
+            UserInputService = {},
+            TweenService = {},
+            HttpService = {},
+            RunService = {},
+            Lighting = {},
+            SoundService = {},
+            StarterGui = {},
+            StarterPack = {},
+            Teams = {}
+        }
+        return services[service] or {}
+    end
+}
+
+local workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local print = print or function(...) end
+
+`
+
+        // スタブ＋コードを書き込む
+        stubFile, err := os.CreateTemp("", "sandbox-lua-*")
         if err != nil {
+            log.Println("Failed to create stub file:", err.Error())
+            return ""
+        }
+        defer os.Remove(stubFile.Name())
+
+        if _, err := stubFile.WriteString(stub + code); err != nil {
+            log.Println("Failed to write stub file:", err.Error())
+            return ""
+        }
+        stubFile.Close()
+
+        // Lua 5.4で試す
+        cmd54 := exec.CommandContext(ctx, "lua5.4", stubFile.Name())
+        cmd54.Stdout = &stdout
+        cmd54.Stderr = &stderr
+        err = cmd54.Run()
+
+        if err != nil {
+            // Lua 5.1で試す
+            log.Println("Lua 5.4 failed, trying Lua 5.1...")
             stdout.Reset()
             stderr.Reset()
-            cmd = exec.CommandContext(ctx, "lua5.1", tmpFile.Name())
-            cmd.Stdout = &stdout
-            cmd.Stderr = &stderr
-            err = cmd.Run()
+            cmd51 := exec.CommandContext(ctx, "lua5.1", stubFile.Name())
+            cmd51.Stdout = &stdout
+            cmd51.Stderr = &stderr
+            err = cmd51.Run()
         }
+
         if err != nil {
+            // Luauで試す
+            log.Println("Lua 5.1 failed, trying Luau...")
             stdout.Reset()
             stderr.Reset()
-            cmd = exec.CommandContext(ctx, "luau", tmpFile.Name())
-            cmd.Stdout = &stdout
-            cmd.Stderr = &stderr
-            err = cmd.Run()
+            cmdLuau := exec.CommandContext(ctx, "luau", stubFile.Name())
+            cmdLuau.Stdout = &stdout
+            cmdLuau.Stderr = &stderr
+            err = cmdLuau.Run()
         }
+
+        if err != nil {
+            log.Println("All Lua versions failed:", err.Error())
+            log.Println("Stderr:", stderr.String())
+            return ""
+        }
+
     case "python":
-        cmd = exec.CommandContext(ctx, "python3", tmpFile.Name())
+        cmd := exec.CommandContext(ctx, "python3", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
+            return ""
+        }
+
     case "php":
-        cmd = exec.CommandContext(ctx, "php", tmpFile.Name())
+        cmd := exec.CommandContext(ctx, "php", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
+            return ""
+        }
+
     case "ruby":
-        cmd = exec.CommandContext(ctx, "ruby", tmpFile.Name())
+        cmd := exec.CommandContext(ctx, "ruby", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
+            return ""
+        }
+
     case "perl":
-        cmd = exec.CommandContext(ctx, "perl", tmpFile.Name())
+        cmd := exec.CommandContext(ctx, "perl", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
+            return ""
+        }
+
     case "c":
         outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
+        defer os.Remove(outputFile)
         compileCmd := exec.CommandContext(ctx, "gcc", tmpFile.Name(), "-o", outputFile)
-        compileCmd.Stdout = &stdout
-        compileCmd.Stderr = &stderr
         if err := compileCmd.Run(); err != nil {
+            log.Println("Compile error:", err.Error())
             return ""
         }
-        defer os.Remove(outputFile)
-        cmd = exec.CommandContext(ctx, outputFile)
+        cmd := exec.CommandContext(ctx, outputFile)
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
+            return ""
+        }
+
     case "cpp":
         outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
+        defer os.Remove(outputFile)
         compileCmd := exec.CommandContext(ctx, "g++", tmpFile.Name(), "-o", outputFile)
-        compileCmd.Stdout = &stdout
-        compileCmd.Stderr = &stderr
         if err := compileCmd.Run(); err != nil {
+            log.Println("Compile error:", err.Error())
             return ""
         }
-        defer os.Remove(outputFile)
-        cmd = exec.CommandContext(ctx, outputFile)
+        cmd := exec.CommandContext(ctx, outputFile)
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
+            return ""
+        }
+
     case "csharp":
         outputDir := strings.TrimSuffix(tmpFile.Name(), ".tmp")
         os.MkdirAll(outputDir, 0755)
         defer os.RemoveAll(outputDir)
-        compileCmd := exec.CommandContext(ctx, "dotnet", "run", "--project", outputDir)
-        compileCmd.Stdout = &stdout
-        compileCmd.Stderr = &stderr
-        if err := compileCmd.Run(); err != nil {
+        cmd := exec.CommandContext(ctx, "dotnet", "run", "--project", outputDir)
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
             return ""
         }
-        cmd = exec.CommandContext(ctx, "dotnet", "run", "--project", outputDir)
+
     case "java":
-        outputDir := strings.TrimSuffix(tmpFile.Name(), ".tmp")
-        os.MkdirAll(outputDir, 0755)
-        defer os.RemoveAll(outputDir)
-        compileCmd := exec.CommandContext(ctx, "javac", tmpFile.Name())
-        compileCmd.Stdout = &stdout
-        compileCmd.Stderr = &stderr
-        if err := compileCmd.Run(); err != nil {
+        cmd := exec.CommandContext(ctx, "java", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
             return ""
         }
-        className := "Main"
-        cmd = exec.CommandContext(ctx, "java", "-cp", outputDir, className)
+
     case "kotlin":
-        cmd = exec.CommandContext(ctx, "kotlinc", "-script", tmpFile.Name())
+        cmd := exec.CommandContext(ctx, "kotlinc", "-script", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
+            return ""
+        }
+
     case "go":
-        cmd = exec.CommandContext(ctx, "go", "run", tmpFile.Name())
+        cmd := exec.CommandContext(ctx, "go", "run", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
+            return ""
+        }
+
     case "rust":
         outputFile := strings.TrimSuffix(tmpFile.Name(), ".tmp") + ".out"
-        compileCmd := exec.CommandContext(ctx, "rustc", tmpFile.Name(), "-o", outputFile)
-        compileCmd.Stdout = &stdout
-        compileCmd.Stderr = &stderr
-        if err := compileCmd.Run(); err != nil {
-            return ""
-        }
         defer os.Remove(outputFile)
-        cmd = exec.CommandContext(ctx, outputFile)
-    case "shell":
-        cmd = exec.CommandContext(ctx, "bash", tmpFile.Name())
-    case "powershell":
-        cmd = exec.CommandContext(ctx, "pwsh", "-File", tmpFile.Name())
-    case "sql":
-        cmd = exec.CommandContext(ctx, "sqlite3", ":memory:", ".read", tmpFile.Name())
-    default:
-        return ""
-    }
-
-    cmd.Stdout = &stdout
-    cmd.Stderr = &stderr
-
-    err = cmd.Run()
-    if err != nil {
-        if ctx.Err() == context.DeadlineExceeded {
-            log.Println("Sandbox timeout")
+        compileCmd := exec.CommandContext(ctx, "rustc", tmpFile.Name(), "-o", outputFile)
+        if err := compileCmd.Run(); err != nil {
+            log.Println("Compile error:", err.Error())
             return ""
         }
-        log.Println("Sandbox error:", err.Error())
-        log.Println("Sandbox stderr:", stderr.String())
+        cmd := exec.CommandContext(ctx, outputFile)
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
+            return ""
+        }
+
+    case "shell":
+        cmd := exec.CommandContext(ctx, "bash", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
+            return ""
+        }
+
+    case "powershell":
+        cmd := exec.CommandContext(ctx, "pwsh", "-File", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
+            return ""
+        }
+
+    case "sql":
+        cmd := exec.CommandContext(ctx, "sqlite3", ":memory:", ".read", tmpFile.Name())
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        if err := cmd.Run(); err != nil {
+            log.Println("Sandbox error:", err.Error())
+            return ""
+        }
+
+    default:
         return ""
     }
 
