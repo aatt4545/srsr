@@ -1,3 +1,5 @@
+
+# Dockerfile
 FROM rust:1.75 AS rust-builder
 
 WORKDIR /app
@@ -21,11 +23,21 @@ FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
+    git \
+    build-essential \
+    cmake \
     nodejs \
     npm \
     lua5.4 \
+    lua5.1 \
     python3 \
     && rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://github.com/luau-lang/luau /tmp/luau && \
+    cd /tmp/luau && \
+    make luau && \
+    cp luau /usr/local/bin/luau && \
+    rm -rf /tmp/luau
 
 WORKDIR /app
 COPY --from=go-builder /app/deobfuscator-server .
