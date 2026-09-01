@@ -1,4 +1,3 @@
-// main.go
 package main
 
 /*
@@ -180,15 +179,29 @@ func executeInSandbox(code string, language string) string {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
+    // 一時ファイルにコードを書く
+    tmpFile, err := os.CreateTemp("", "sandbox-*")
+    if err != nil {
+        log.Println("Failed to create temp file:", err.Error())
+        return ""
+    }
+    defer os.Remove(tmpFile.Name())
+
+    if _, err := tmpFile.WriteString(code); err != nil {
+        log.Println("Failed to write temp file:", err.Error())
+        return ""
+    }
+    tmpFile.Close()
+
     var cmd *exec.Cmd
 
     switch language {
     case "javascript", "typescript":
-        cmd = exec.CommandContext(ctx, "node", "-e", code)
+        cmd = exec.CommandContext(ctx, "node", tmpFile.Name())
     case "lua":
-        cmd = exec.CommandContext(ctx, "lua5.4", "-e", code)
+        cmd = exec.CommandContext(ctx, "lua5.4", tmpFile.Name())
     case "python":
-        cmd = exec.CommandContext(ctx, "python3", "-c", code)
+        cmd = exec.CommandContext(ctx, "python3", tmpFile.Name())
     default:
         return ""
     }
@@ -197,7 +210,7 @@ func executeInSandbox(code string, language string) string {
     cmd.Stdout = &stdout
     cmd.Stderr = &stderr
 
-    err := cmd.Run()
+    err = cmd.Run()
     if err != nil {
         if ctx.Err() == context.DeadlineExceeded {
             log.Println("Sandbox timeout")
