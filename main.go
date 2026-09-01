@@ -279,6 +279,16 @@ local sandbox = {
 }
 setmetatable(sandbox, { __index = _G })
 
+-- loadstringをフックして復元コードをキャプチャ
+local originalLoadstring = loadstring
+sandbox.loadstring = function(code)
+    io.write("[DECOMPILED_CODE_START]\n")
+    io.write(code)
+    io.write("\n[DECOMPILED_CODE_END]\n")
+    return originalLoadstring(code)
+end
+sandbox.load = sandbox.loadstring
+
 local chunk = assert(loadstring(code))
 setfenv(chunk, sandbox)
 chunk()
@@ -718,6 +728,21 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
     sandboxOutput := ""
     if detectedLang != "" && detectedLang != "unknown" && detectedLang != "html" && detectedLang != "json" && detectedLang != "xml" {
         sandboxOutput = executeInSandbox(response.OriginalCode, detectedLang)
+        
+        // 復元されたコードを抽出
+        if strings.Contains(sandboxOutput, "[DECOMPILED_CODE_START]") {
+            parts := strings.Split(sandboxOutput, "[DECOMPILED_CODE_START]")
+            if len(parts) > 1 {
+                codeParts := strings.Split(parts[1], "[DECOMPILED_CODE_END]")
+                if len(codeParts) > 1 {
+                    decompiledCode := strings.TrimSpace(codeParts[0])
+                    if decompiledCode != "" && decompiledCode != response.OriginalCode {
+                        response.OriginalCode = decompiledCode
+                        response.TransformationsApplied = append(response.TransformationsApplied, "vm_decompiled")
+                    }
+                }
+            }
+        }
     }
 
     if os.Getenv("OPENROUTER_API_KEY") != "" {
