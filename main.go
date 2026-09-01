@@ -1,3 +1,4 @@
+// main.go
 package main
 
 /*
@@ -179,7 +180,6 @@ func executeInSandbox(code string, language string) string {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    // 一時ファイルにコードを書く
     tmpFile, err := os.CreateTemp("", "sandbox-*")
     if err != nil {
         log.Println("Failed to create temp file:", err.Error())
@@ -480,13 +480,15 @@ func deobfuscateCode(code string, language string, obfuscationType string) Deobf
         detectedLang = language
     }
 
+    // サンドボックスには元のコードを渡す
     sandboxOutput := ""
     if detectedLang == "javascript" || detectedLang == "typescript" || detectedLang == "lua" || detectedLang == "python" {
         log.Println("Running sandbox for:", detectedLang)
-        sandboxOutput = executeInSandbox(response.OriginalCode, detectedLang)
+        sandboxOutput = executeInSandbox(code, detectedLang)
         log.Println("Sandbox output:", sandboxOutput)
     }
 
+    // AIにはRustの解読結果とサンドボックス出力を渡す
     if os.Getenv("OPENROUTER_API_KEY") != "" {
         aiResult, err := deobfuscateWithAI(response.OriginalCode, sandboxOutput)
         if err == nil && aiResult != "" && aiResult != code {
